@@ -8,7 +8,7 @@ A VS Code extension for placing and managing `REVIEW:` comments in code for AI-a
 - **🧵 Threaded inline conversations** — Multi-turn comment threads inline in the editor, like GitHub PR reviews
 - **✅ Resolve/Unresolve threads** — Mark threads as resolved when addressed
 - **📋 Comments panel** — VS Code's native Comments panel (View → Comments) lists all threads grouped by file with built-in open/resolved filtering
-- **🗂️ Persistent storage** — All threads saved to `.ai-review.json` in the workspace root
+- **🗂️ Persistent storage** — All threads saved to `.vscode/.ai-review.json`
 - **📐 Anchor tracking** — Thread anchors stay in sync on line edits, file/folder renames, and file/folder deletes
 
 ## Usage
@@ -37,11 +37,11 @@ Open the native **Comments** panel (View → Comments, or the speech-bubble icon
 | Setting | Default | Description |
 |---|---|---|
 | `aiReview.decorationBackgroundColor` | `""` | Custom background color for review lines (e.g. `#ffff0020`) |
-| `aiReview.autoSave` | `true` | Auto-save `.ai-review.json` after every change; when `false`, changes are session-only until you re-enable auto-save |
+| `aiReview.autoSave` | `true` | Auto-save `.vscode/.ai-review.json` after every change; when `false`, changes are session-only until you re-enable auto-save |
 
 ## Storage Format
 
-Review threads are stored in `.ai-review.json` at the workspace root. Add it to `.gitignore` if you do not want to commit review threads.
+Review threads are stored in `.vscode/.ai-review.json`. This path is included in `.gitignore` by default.
 
 ## Compatibility with review-resolver skill
 
@@ -53,4 +53,4 @@ Comment bodies can use `REVIEW:` and `LLM:` prefixes to stay compatible with the
 - Plugin manifest: `.github/plugins/feedback-resolver/plugin.json`
 - Marketplace catalog: `.github/plugin/marketplace.json`
 
-The `feedback-resolver` skill resolves open threads from `.ai-review.json`, appends `llm` comments, and marks processed threads as `resolved`.
+The `feedback-resolver` skill resolves open threads from `.vscode/.ai-review.json`, appends `llm` comments, and marks processed threads as `resolved`.

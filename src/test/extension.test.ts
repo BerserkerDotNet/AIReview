@@ -106,9 +106,9 @@ suite('ReviewStore Test Suite', () => {
 		assert.strictEqual(ok, false);
 	});
 
-	test('persists data to .ai-review.json', async () => {
+	test('persists data to .vscode/.ai-review.json', async () => {
 		await store.addThread('file.ts', 5, 'Persist me');
-		const filePath = path.join(tmpDir, '.ai-review.json');
+		const filePath = path.join(tmpDir, '.vscode', '.ai-review.json');
 		assert.ok(fs.existsSync(filePath));
 		const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 		assert.strictEqual(content.version, 1);

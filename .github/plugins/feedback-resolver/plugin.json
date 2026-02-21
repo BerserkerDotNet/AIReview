@@ -1,6 +1,6 @@
 {
   "name": "feedback-resolver",
-  "description": "Resolve open feedback threads from .ai-review.json.",
+  "description": "Resolve open feedback threads from .vscode/.ai-review.json.",
   "version": "1.0.0",
   "author": {
     "name": "AI Changes Review Team",

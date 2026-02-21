@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "feedback-resolver",
-      "description": "Resolves open .ai-review.json threads and writes LLM resolution comments.",
+      "description": "Resolves open .vscode/.ai-review.json threads and writes LLM resolution comments.",
       "version": "1.0.0",
       "source": ".github/plugins/feedback-resolver"
     }

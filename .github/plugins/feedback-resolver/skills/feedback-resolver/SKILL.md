@@ -1,11 +1,11 @@
 ---
 name: feedback-resolver
-description: 'Resolves open threads from .ai-review.json by implementing fixes, replying in-thread, and marking threads resolved.'
+description: 'Resolves open threads from .vscode/.ai-review.json by implementing fixes, replying in-thread, and marking threads resolved.'
 ---
 
 # Feedback Resolver
 
-Systematically resolves open threads stored in `.ai-review.json`.
+Systematically resolves open threads stored in `.vscode/.ai-review.json`.
 
 ## When to Use
 
@@ -17,13 +17,13 @@ Systematically resolves open threads stored in `.ai-review.json`.
 
 ### 1. Discover sidecar files
 ```powershell
-Get-ChildItem -Path . -Filter .ai-review.json -Recurse -File
+Get-ChildItem -Path .\.vscode -Filter .ai-review.json -Recurse -File -ErrorAction SilentlyContinue
 ```
 
 If no sidecar exists, stop and tell the user there are no tracked threads yet.
 
 ### 2. Parse open threads
-Read `.ai-review.json` and select `threads` where `status == "open"`.
+Read `.vscode/.ai-review.json` and select `threads` where `status == "open"`.
 
 Minimum fields to extract per thread:
 - `id`
@@ -51,7 +51,7 @@ For each open thread:
 Run project checks/tests that already exist and fix issues caused by the change.
 
 ### 7. Persist sidecar update
-Write back `.ai-review.json` with resolved status and appended `llm` comments.
+Write back `.vscode/.ai-review.json` with resolved status and appended `llm` comments.
 
 ### 8. Final verification
 - Confirm no unresolved targeted threads remain
@@ -62,7 +62,7 @@ Write back `.ai-review.json` with resolved status and appended `llm` comments.
 ✅ **Do:**
 - Make minimal focused changes
 - Resolve one thread at a time
-- Keep `.ai-review.json` as source of truth
+- Keep `.vscode/.ai-review.json` as source of truth
 - Ask clarifying questions when needed
 
 ❌ **Don't:**

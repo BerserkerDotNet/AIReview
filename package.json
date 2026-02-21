@@ -32,7 +32,7 @@
         "aiReview.autoSave": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically save .ai-review.json after every change."
+          "description": "Automatically save .vscode/.ai-review.json after every change."
         }
       }
     },

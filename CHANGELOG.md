@@ -9,6 +9,6 @@
 - Resolve / unresolve threads
 - Delete threads
 - Gutter icons and line highlighting for lines with active review threads
-- `.ai-review.json` sidecar storage with full JSON schema
+- `.vscode/.ai-review.json` sidecar storage with full JSON schema
 - Automatic anchor tracking for line edits, file/folder renames, and file/folder deletes
 - Multi-turn comment threads (user + AI replies)

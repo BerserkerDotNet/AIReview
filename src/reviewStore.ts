@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { ReviewData, ReviewThread, ReviewComment } from './models';
 
+const STORE_DIRNAME = '.vscode';
 const STORE_FILENAME = '.ai-review.json';
 const CURRENT_VERSION = 1;
 
@@ -23,7 +24,9 @@ export class ReviewStore implements vscode.Disposable {
      * Loads existing data and starts watching for external changes.
      */
     async initialize(workspaceFolder: vscode.WorkspaceFolder): Promise<void> {
-        this.filePath = path.join(workspaceFolder.uri.fsPath, STORE_FILENAME);
+        const storeDirPath = path.join(workspaceFolder.uri.fsPath, STORE_DIRNAME);
+        this.filePath = path.join(storeDirPath, STORE_FILENAME);
+        await vscode.workspace.fs.createDirectory(vscode.Uri.file(storeDirPath));
         await this.load();
         this.watchFile();
     }
@@ -207,15 +210,13 @@ export class ReviewStore implements vscode.Disposable {
         if (!this.filePath) {
             return;
         }
-        const uri = vscode.Uri.file(this.filePath);
         try {
-            const content = await vscode.workspace.fs.readFile(uri);
+            const content = await vscode.workspace.fs.readFile(vscode.Uri.file(this.filePath));
             const parsed = JSON.parse(Buffer.from(content).toString('utf-8')) as ReviewData;
             if (parsed.version && Array.isArray(parsed.threads)) {
                 this.data = parsed;
             }
         } catch {
-            // File doesn't exist yet — start with empty data
             this.data = { version: CURRENT_VERSION, threads: [] };
         }
     }
@@ -230,9 +231,13 @@ export class ReviewStore implements vscode.Disposable {
         if (!autoSave) {
             return;
         }
-        const uri = vscode.Uri.file(this.filePath);
+        await this.writeDataToPath(this.filePath);
+    }
+
+    private async writeDataToPath(targetPath: string): Promise<void> {
+        await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(targetPath)));
         const content = JSON.stringify(this.data, null, 2);
-        await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf-8'));
+        await vscode.workspace.fs.writeFile(vscode.Uri.file(targetPath), Buffer.from(content, 'utf-8'));
     }
 
     private watchFile(): void {

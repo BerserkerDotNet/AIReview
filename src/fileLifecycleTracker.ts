@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { ReviewStore } from './reviewStore';
 
 /**
- * Keeps .ai-review.json thread paths in sync when files/folders are renamed or deleted.
+ * Keeps .vscode/.ai-review.json thread paths in sync when files/folders are renamed or deleted.
  */
 export class FileLifecycleTracker implements vscode.Disposable {
     private disposables: vscode.Disposable[] = [];
