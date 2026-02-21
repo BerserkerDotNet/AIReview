@@ -1,4 +1,4 @@
-# AI Review
+# AI Changes Review
 
 A VS Code extension for placing and managing `REVIEW:` comments in code for AI-assisted code review.
 
@@ -16,7 +16,7 @@ A VS Code extension for placing and managing `REVIEW:` comments in code for AI-a
 ### Adding a comment
 
 1. Hover over a line and click **💬 Add Review Comment**
-2. Or right-click → **AI Review: Add Review Comment**
+2. Or right-click → **AI Changes Review: Add Review Comment**
 3. Or press `Ctrl+Shift+R`
 4. Type your comment and press Enter
 
@@ -49,8 +49,8 @@ Comment bodies can use `REVIEW:` and `LLM:` prefixes to stay compatible with the
 
 ## Copilot skill plugin + marketplace
 
-- Skill: `.github/skills/ai-review-resolver/SKILL.md`
-- Plugin manifest: `.github/copilot/plugins/ai-review-resolver/plugin.json`
+- Skill: `.github/skills/feedback-resolver/SKILL.md`
+- Plugin manifest: `.github/copilot/plugins/feedback-resolver/plugin.json`
 - Marketplace catalog: `.github/copilot/marketplace.json`
 
-The `ai-review-resolver` skill resolves open threads from `.ai-review.json`, appends `llm` comments, and marks processed threads as `resolved`.
+The `feedback-resolver` skill resolves open threads from `.ai-review.json`, appends `llm` comments, and marks processed threads as `resolved`.

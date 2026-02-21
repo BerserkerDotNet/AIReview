@@ -1,9 +1,9 @@
 ---
-name: ai-review-resolver
+name: feedback-resolver
 description: 'Resolves open threads from .ai-review.json by implementing fixes, replying in-thread, and marking threads resolved.'
 ---
 
-# AI Review Resolver
+# Feedback Resolver
 
 Systematically resolves open threads stored in `.ai-review.json`.
 
@@ -11,7 +11,7 @@ Systematically resolves open threads stored in `.ai-review.json`.
 
 - User asks to resolve AI review threads
 - User asks to process unresolved review comments from sidecar storage
-- User asks to apply feedback tracked by the AI Review extension
+- User asks to apply feedback tracked by the AI Changes Review extension
 
 ## Workflow
 

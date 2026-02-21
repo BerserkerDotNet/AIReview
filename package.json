@@ -1,7 +1,7 @@
 {
   "name": "ai-review",
   "publisher": "ai-review-local",
-  "displayName": "AI Review",
+  "displayName": "AI Changes Review",
   "description": "Place and manage REVIEW comments for AI-assisted code review",
   "version": "0.0.1",
   "license": "MIT",
@@ -19,9 +19,10 @@
     "onStartupFinished"
   ],
   "main": "./dist/extension.js",
+  "icon": "resources/icon.png",
   "contributes": {
     "configuration": {
-      "title": "AI Review",
+      "title": "AI Changes Review",
       "properties": {
         "aiReview.decorationBackgroundColor": {
           "type": "string",
@@ -38,27 +39,27 @@
     "commands": [
       {
         "command": "ai-review.goToThread",
-        "title": "AI Review: Go to Thread"
+        "title": "AI Changes Review: Go to Thread"
       },
       {
         "command": "ai-review.addComment",
-        "title": "AI Review: Add Review Comment"
+        "title": "AI Changes Review: Add Review Comment"
       },
       {
         "command": "ai-review.replyToThread",
-        "title": "AI Review: Reply to Thread"
+        "title": "AI Changes Review: Reply to Thread"
       },
       {
         "command": "ai-review.resolveThread",
-        "title": "AI Review: Resolve Thread"
+        "title": "AI Changes Review: Resolve Thread"
       },
       {
         "command": "ai-review.unresolveThread",
-        "title": "AI Review: Unresolve Thread"
+        "title": "AI Changes Review: Unresolve Thread"
       },
       {
         "command": "ai-review.deleteThread",
-        "title": "AI Review: Delete Thread"
+        "title": "AI Changes Review: Delete Thread"
       },
       {
         "command": "ai-review.submitComment",

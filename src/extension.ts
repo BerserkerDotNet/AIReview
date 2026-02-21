@@ -56,7 +56,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const fileLifecycleTracker = new FileLifecycleTracker(store);
 	context.subscriptions.push(fileLifecycleTracker);
 
-	console.log('AI Review extension is now active');
+	console.log('AI Changes Review extension is now active');
 }
 
 export function deactivate() {

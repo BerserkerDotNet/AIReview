@@ -11,7 +11,7 @@ export class ReviewCommentController implements vscode.Disposable {
     constructor(private store: ReviewStore) {
         this.controller = vscode.comments.createCommentController(
             'ai-review',
-            'AI Review'
+            'AI Changes Review'
         );
         this.controller.options = {
             placeHolder: 'Add a REVIEW comment...',
