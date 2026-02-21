@@ -5,25 +5,17 @@ import { ReviewStore } from './reviewStore';
 export class DecorationProvider implements vscode.Disposable {
     private disposables: vscode.Disposable[] = [];
     private decorationType: vscode.TextEditorDecorationType;
+    private readonly iconPath: vscode.Uri;
 
     constructor(
         private store: ReviewStore,
         context: vscode.ExtensionContext,
     ) {
-        const iconPath = vscode.Uri.file(
+        this.iconPath = vscode.Uri.file(
             path.join(context.extensionPath, 'resources', 'comment.svg')
         );
 
-        this.decorationType = vscode.window.createTextEditorDecorationType({
-            gutterIconPath: iconPath,
-            gutterIconSize: 'contain',
-            backgroundColor: new vscode.ThemeColor('diffEditor.insertedTextBackground'),
-            isWholeLine: true,
-            overviewRulerColor: new vscode.ThemeColor('editorOverviewRuler.infoForegroundColor'),
-            overviewRulerLane: vscode.OverviewRulerLane.Right,
-        });
-
-        this.disposables.push(this.decorationType);
+        this.decorationType = this.createDecorationType();
 
         // Refresh decorations when threads change
         this.disposables.push(
@@ -40,8 +32,36 @@ export class DecorationProvider implements vscode.Disposable {
             vscode.workspace.onDidOpenTextDocument(() => this.refreshAll())
         );
 
+        // Recreate decorations when the configured color changes
+        this.disposables.push(
+            vscode.workspace.onDidChangeConfiguration(e => {
+                if (!e.affectsConfiguration('aiReview.decorationBackgroundColor')) {
+                    return;
+                }
+                this.decorationType.dispose();
+                this.decorationType = this.createDecorationType();
+                this.refreshAll();
+            })
+        );
+
         // Initial decoration
         this.refreshAll();
+    }
+
+    private createDecorationType(): vscode.TextEditorDecorationType {
+        const configuredColor = vscode.workspace
+            .getConfiguration('aiReview')
+            .get<string>('decorationBackgroundColor', '')
+            .trim();
+
+        return vscode.window.createTextEditorDecorationType({
+            gutterIconPath: this.iconPath,
+            gutterIconSize: 'contain',
+            backgroundColor: configuredColor || new vscode.ThemeColor('diffEditor.insertedTextBackground'),
+            isWholeLine: true,
+            overviewRulerColor: new vscode.ThemeColor('editorOverviewRuler.infoForegroundColor'),
+            overviewRulerLane: vscode.OverviewRulerLane.Right,
+        });
     }
 
     private refreshAll(): void {
@@ -82,6 +102,7 @@ export class DecorationProvider implements vscode.Disposable {
     }
 
     dispose(): void {
+        this.decorationType.dispose();
         for (const d of this.disposables) {
             d.dispose();
         }

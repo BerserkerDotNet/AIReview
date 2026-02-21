@@ -1,0 +1,16 @@
+{
+  "id": "ai-review-resolver",
+  "name": "AI Review Resolver",
+  "version": "1.0.0",
+  "description": "Copilot plugin wrapper for resolving open threads from .ai-review.json.",
+  "type": "skill-wrapper",
+  "entrySkill": ".github/skills/ai-review-resolver/SKILL.md",
+  "triggers": [
+    "resolve ai review threads",
+    "process .ai-review.json",
+    "close unresolved sidecar threads"
+  ],
+  "inputs": {
+    "sidecarFile": ".ai-review.json"
+  }
+}

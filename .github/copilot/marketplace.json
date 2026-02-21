@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "ai-review-resolver",
+      "name": "AI Review Resolver",
+      "description": "Resolves open .ai-review.json threads and writes LLM resolution comments.",
+      "manifestPath": ".github/copilot/plugins/ai-review-resolver/plugin.json",
+      "skillPath": ".github/skills/ai-review-resolver/SKILL.md",
+      "tags": ["copilot-skill", "review", "sidecar", "automation"]
+    }
+  ]
+}

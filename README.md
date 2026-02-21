@@ -37,7 +37,7 @@ Open the native **Comments** panel (View → Comments, or the speech-bubble icon
 | Setting | Default | Description |
 |---|---|---|
 | `aiReview.decorationBackgroundColor` | `""` | Custom background color for review lines (e.g. `#ffff0020`) |
-| `aiReview.autoSave` | `true` | Auto-save `.ai-review.json` after every change |
+| `aiReview.autoSave` | `true` | Auto-save `.ai-review.json` after every change; when `false`, changes are session-only until you re-enable auto-save |
 
 ## Storage Format
 
@@ -46,3 +46,11 @@ Review threads are stored in `.ai-review.json` at the workspace root. Add it to 
 ## Compatibility with review-resolver skill
 
 Comment bodies can use `REVIEW:` and `LLM:` prefixes to stay compatible with the review-resolver Copilot skill, which uses `grep -rn "REVIEW:"` to discover comments.
+
+## Copilot skill plugin + marketplace
+
+- Skill: `.github/skills/ai-review-resolver/SKILL.md`
+- Plugin manifest: `.github/copilot/plugins/ai-review-resolver/plugin.json`
+- Marketplace catalog: `.github/copilot/marketplace.json`
+
+The `ai-review-resolver` skill resolves open threads from `.ai-review.json`, appends `llm` comments, and marks processed threads as `resolved`.

@@ -224,6 +224,12 @@ export class ReviewStore implements vscode.Disposable {
         if (!this.filePath) {
             return;
         }
+        const autoSave = vscode.workspace
+            .getConfiguration('aiReview')
+            .get<boolean>('autoSave', true);
+        if (!autoSave) {
+            return;
+        }
         const uri = vscode.Uri.file(this.filePath);
         const content = JSON.stringify(this.data, null, 2);
         await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf-8'));

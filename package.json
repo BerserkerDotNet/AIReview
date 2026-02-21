@@ -7,7 +7,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "file:///I:/Programs/AIReview/ai-review"
+    "url": "file:///I:/Programs/AIReview"
   },
   "engines": {
     "vscode": "^1.109.0"
@@ -15,7 +15,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "configuration": {
@@ -89,7 +91,7 @@
           "when": "editorTextFocus"
         }
       ],
-        "comments/commentThread/title": [
+      "comments/commentThread/title": [
         {
           "command": "ai-review.resolveCommentThread",
           "group": "inline@1",
@@ -143,15 +145,20 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.109.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "22.x",
-    "typescript-eslint": "^8.54.0",
-    "eslint": "^9.39.2",
-    "esbuild": "^0.27.2",
-    "npm-run-all": "^4.1.5",
-    "typescript": "^5.9.3",
+    "@types/node": "^25.3.0",
+    "@types/vscode": "^1.109.0",
     "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.2",
+    "eslint": "^10.0.1",
+    "npm-run-all2": "^8.0.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0"
+  },
+  "overrides": {
+    "diff": "^8.0.2",
+    "glob": "^11.0.3",
+    "minimatch": "^10.2.1"
   }
 }
