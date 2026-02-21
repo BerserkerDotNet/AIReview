@@ -10,10 +10,6 @@ on:
 jobs:
   build-package:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: ai-review
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
