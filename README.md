@@ -49,8 +49,8 @@ Comment bodies can use `REVIEW:` and `LLM:` prefixes to stay compatible with the
 
 ## Copilot skill plugin + marketplace
 
-- Skill: `.github/skills/feedback-resolver/SKILL.md`
-- Plugin manifest: `.github/copilot/plugins/feedback-resolver/plugin.json`
-- Marketplace catalog: `.github/copilot/marketplace.json`
+- Skill: `.github/plugins/feedback-resolver/skills/feedback-resolver/SKILL.md`
+- Plugin manifest: `.github/plugins/feedback-resolver/plugin.json`
+- Marketplace catalog: `.github/plugin/marketplace.json`
 
 The `feedback-resolver` skill resolves open threads from `.ai-review.json`, appends `llm` comments, and marks processed threads as `resolved`.

@@ -1,13 +1,19 @@
 {
-  "version": 1,
+  "name": "ai-changes-review-marketplace",
+  "owner": {
+    "name": "AI Changes Review Team",
+    "email": "noreply@example.com"
+  },
+  "metadata": {
+    "description": "Plugin marketplace for AI Changes Review workflows.",
+    "version": "1.0.0"
+  },
   "plugins": [
     {
-      "id": "feedback-resolver",
-      "name": "Feedback Resolver",
+      "name": "feedback-resolver",
       "description": "Resolves open .ai-review.json threads and writes LLM resolution comments.",
-      "manifestPath": ".github/plugins/feedback-resolver/plugin.json",
-      "skillPath": ".github/skills/feedback-resolver/SKILL.md",
-      "tags": ["copilot-skill", "review", "sidecar", "automation"]
+      "version": "1.0.0",
+      "source": ".github/plugins/feedback-resolver"
     }
   ]
 }
