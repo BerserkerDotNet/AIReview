@@ -1,0 +1,157 @@
+{
+  "name": "ai-review",
+  "publisher": "ai-review-local",
+  "displayName": "AI Review",
+  "description": "Place and manage REVIEW comments for AI-assisted code review",
+  "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "file:///I:/Programs/AIReview/ai-review"
+  },
+  "engines": {
+    "vscode": "^1.109.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "AI Review",
+      "properties": {
+        "aiReview.decorationBackgroundColor": {
+          "type": "string",
+          "default": "",
+          "description": "Background color for lines with review threads. Accepts a CSS color (e.g. '#ffff0020'). Leave empty to use the default theme color."
+        },
+        "aiReview.autoSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically save .ai-review.json after every change."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "ai-review.goToThread",
+        "title": "AI Review: Go to Thread"
+      },
+      {
+        "command": "ai-review.addComment",
+        "title": "AI Review: Add Review Comment"
+      },
+      {
+        "command": "ai-review.replyToThread",
+        "title": "AI Review: Reply to Thread"
+      },
+      {
+        "command": "ai-review.resolveThread",
+        "title": "AI Review: Resolve Thread"
+      },
+      {
+        "command": "ai-review.unresolveThread",
+        "title": "AI Review: Unresolve Thread"
+      },
+      {
+        "command": "ai-review.deleteThread",
+        "title": "AI Review: Delete Thread"
+      },
+      {
+        "command": "ai-review.submitComment",
+        "title": "Add Review Comment",
+        "enablement": "!commentIsEmpty"
+      },
+      {
+        "command": "ai-review.submitReply",
+        "title": "Reply",
+        "enablement": "!commentIsEmpty"
+      },
+      {
+        "command": "ai-review.resolveCommentThread",
+        "title": "Resolve Thread"
+      },
+      {
+        "command": "ai-review.unresolveCommentThread",
+        "title": "Unresolve Thread"
+      },
+      {
+        "command": "ai-review.deleteCommentThread",
+        "title": "Delete Thread"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "ai-review.addComment",
+          "group": "ai-review@1",
+          "when": "editorTextFocus"
+        }
+      ],
+        "comments/commentThread/title": [
+        {
+          "command": "ai-review.resolveCommentThread",
+          "group": "inline@1",
+          "when": "commentController == ai-review && commentThreadIsEmpty == false && commentThread/state == 'unresolved'"
+        },
+        {
+          "command": "ai-review.unresolveCommentThread",
+          "group": "inline@1",
+          "when": "commentController == ai-review && commentThread/state == 'resolved'"
+        },
+        {
+          "command": "ai-review.deleteCommentThread",
+          "group": "inline@2",
+          "when": "commentController == ai-review"
+        }
+      ],
+      "comments/commentThread/context": [
+        {
+          "command": "ai-review.submitComment",
+          "group": "inline",
+          "when": "commentController == ai-review && commentThreadIsEmpty"
+        },
+        {
+          "command": "ai-review.submitReply",
+          "group": "inline",
+          "when": "commentController == ai-review && !commentThreadIsEmpty"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "ai-review.addComment",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.109.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "typescript-eslint": "^8.54.0",
+    "eslint": "^9.39.2",
+    "esbuild": "^0.27.2",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.9.3",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
