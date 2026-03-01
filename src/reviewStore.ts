@@ -84,6 +84,22 @@ export class ReviewStore implements vscode.Disposable {
         return comment;
     }
 
+    async editComment(threadId: string, commentId: string, newBody: string, editor: 'user' | 'llm' = 'user'): Promise<boolean> {
+        const thread = this.getThread(threadId);
+        if (!thread) {
+            return false;
+        }
+        const comment = thread.comments.find(c => c.id === commentId);
+        if (!comment) {
+            return false;
+        }
+        comment.body = newBody;
+        comment.editedAt = new Date().toISOString();
+        await this.save();
+        this._onDidChangeThreads.fire();
+        return true;
+    }
+
     async setThreadStatus(threadId: string, status: 'open' | 'resolved'): Promise<boolean> {
         const thread = this.getThread(threadId);
         if (!thread) {

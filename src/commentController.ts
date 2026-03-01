@@ -14,8 +14,8 @@ export class ReviewCommentController implements vscode.Disposable {
             'AI Changes Review'
         );
         this.controller.options = {
-            placeHolder: 'Add a REVIEW comment...',
-            prompt: 'Add a REVIEW comment...',
+            placeHolder: 'Add a review comment...',
+            prompt: 'Add a review comment...',
         };
 
         // Allow commenting on any line in any file
@@ -62,6 +62,14 @@ export class ReviewCommentController implements vscode.Disposable {
             vscode.commands.registerCommand(
                 'ai-review.deleteCommentThread',
                 (thread: vscode.CommentThread) => this.handleDelete(thread)
+            )
+        );
+
+        // Handle start edit — opens a pre-filled InputBox immediately (reliable cross-version approach)
+        this.disposables.push(
+            vscode.commands.registerCommand(
+                'ai-review.startEdit',
+                (arg1?: any, arg2?: any) => this.handleStartEdit(arg1, arg2)
             )
         );
 
@@ -130,12 +138,22 @@ export class ReviewCommentController implements vscode.Disposable {
     }
 
     private toVscodeComments(reviewThread: ReviewThread): vscode.Comment[] {
-        return reviewThread.comments.map(c => ({
-            body: new vscode.MarkdownString(c.body),
-            mode: vscode.CommentMode.Preview,
-            author: { name: c.author === 'user' ? 'You' : 'AI' },
-            timestamp: new Date(c.timestamp),
-        }));
+        return reviewThread.comments.map(c => {
+            const md = new vscode.MarkdownString();
+            md.appendMarkdown(c.body);
+            if (c.author === 'user') {
+                const args = encodeURIComponent(JSON.stringify([reviewThread.id, c.id]));
+                md.appendMarkdown(`\n\n[Edit](command:ai-review.startEdit?${args})`);
+                md.isTrusted = true;
+            }
+            return {
+                body: md,
+                mode: vscode.CommentMode.Preview,
+                author: { name: c.author === 'user' ? 'You' : 'AI' },
+                timestamp: new Date(c.timestamp),
+                contextValue: c.author === 'user' ? `comment:${reviewThread.id}:${c.id}` : undefined,
+            } as vscode.Comment;
+        });
     }
 
     // --- Command handlers ---
@@ -174,6 +192,37 @@ export class ReviewCommentController implements vscode.Disposable {
         const threadId = thread.contextValue;
         if (!threadId) { return; }
         await this.store.deleteThread(threadId);
+    }
+
+    private async handleStartEdit(arg1?: any, arg2?: any): Promise<void> {
+        let threadId: string | undefined;
+        let commentId: string | undefined;
+
+        if (typeof arg1 === 'string' && typeof arg2 === 'string') {
+            threadId = arg1;
+            commentId = arg2;
+        } else if (Array.isArray(arg1) && arg1.length >= 2) {
+            threadId = arg1[0];
+            commentId = arg1[1];
+        }
+
+        if (!threadId || !commentId) { return; }
+
+        const reviewThread = this.store.getThread(threadId);
+        if (!reviewThread) { return; }
+
+        const comment = reviewThread.comments.find(c => c.id === commentId);
+        if (!comment) { return; }
+
+        const newBody = await vscode.window.showInputBox({
+            prompt: 'Edit comment',
+            value: comment.body,
+            validateInput: (val) => val.trim() ? undefined : 'Comment cannot be empty',
+        });
+        if (newBody === undefined) { return; }
+
+        await this.store.editComment(threadId, commentId, newBody.trim());
+        // store fires onDidChangeThreads → syncFromStore
     }
 
     dispose(): void {

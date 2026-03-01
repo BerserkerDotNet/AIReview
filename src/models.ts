@@ -3,6 +3,7 @@ export interface ReviewComment {
     author: 'user' | 'llm';
     body: string;
     timestamp: string;
+    editedAt?: string;
 }
 
 export interface ReviewThread {

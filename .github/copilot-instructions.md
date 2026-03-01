@@ -1,115 +1,149 @@
 # Copilot instructions — AI Changes Review repository
 
-Purpose: help future Copilot CLI / assistant sessions quickly understand how to build, test, run, and modify this VS Code extension repository.
+A focused reference for Copilot CLI / assistant sessions working on the AI Changes Review VS Code extension. This file gathers the repository's build/test commands, high-level architecture, and repo-specific conventions so future automated sessions can act reliably.
 
 ---
 
-## 1) Build, test, and lint commands
+## 1) Build, test, and lint commands (exact)
 
-Primary commands (run from repository root):
+Run from the repository root.
 
 - Install deps: `npm ci`
-- Build (type-check, lint, bundle): `npm run compile`
-- Lint: `npm run lint`
-- Run all tests (integration tests in VS Code test host): `npm test`
-- Compile tests only: `npm run compile-tests` (outputs JS to `out/test/`)
-- Package VSIX locally: `npx @vscode/vsce package` or `npm run package`
-- Create VSIX and publish (CI/local): `npx @vscode/vsce publish -p "$VSCE_PAT"` (requires PAT in env/secret)
-- Watch (dev): `npm run watch` (runs parallel watchers)
+- Type-check: `npm run check-types` (runs `tsc --noEmit`)
+- Lint: `npm run lint` (runs `eslint src`)
+- Build (type-check, lint, bundle): `npm run compile` (check-types → lint → `node esbuild.js`)
+- Watch (dev): `npm run watch` (parallel watchers for esbuild/tsc)
+- Package (production build for VSIX): `npm run package` (check-types → lint → `node esbuild.js --production`)
+- Package VSIX locally: `npx @vscode/vsce package`
+- Publish VSIX (CI/local): `npx @vscode/vsce publish -p "$VSCE_PAT"` (requires VSCE_PAT secret)
+
+Tests:
+- Run full test suite (integration tests in a real VS Code host): `npm test` (uses `vscode-test`)
+- Compile tests only (fast): `npm run compile-tests` (outputs compiled JS to `out/`)
 
 Run a single test file (fast, uses compiled JS):
-
 1. `npm run compile-tests`
-2. Run mocha on a single compiled file, e.g.: `npx mocha out/test/decoration.test.js`
+2. `npx mocha out/test/decoration.test.js` (or any compiled spec in `out/test/`)
 
 Run a single test case (grep):
+- `npx mocha -g "pattern" out/test/*.test.js`
 
-- `npx mocha -g "pattern" out/test/*.test.js` or temporarily use `it.only(...)` / `test.only(...)` in the TypeScript source and re-run `npm run compile-tests && npx mocha out/test/*.test.js`.
+Debug/Run extension in VS Code:
+- Open this workspace in VS Code and press F5 to launch an "Extension Development Host" for manual testing and debugging.
 
-Notes about tests:
-- The canonical full test run uses the `vscode-test` harness (the `npm test` script) which launches a VS Code extension host; that is the authoritative integration test path.
-- If the VS Code test runner fails with "Code is currently being updated" or similar, stop lingering CodeSetup processes (PowerShell: `Get-Process | Where-Object { $_.ProcessName -like 'CodeSetup*' } | Stop-Process -Id $_.Id -Force`) and retry.
+Notes:
+- `npm test` executes integration tests inside a VS Code test host (the authoritative integration path).
+- If the VS Code test runner fails due to stale Code installer processes, stop CodeSetup processes via PowerShell: `Get-Process | Where-Object { $_.ProcessName -like 'CodeSetup*' } | Stop-Process -Id $_.Id -Force`.
 
 ---
 
 ## 2) High-level architecture (big picture)
 
-- src/reviewStore.ts — Core persistence and model management (ReviewData -> `.vscode/.ai-review.json`). Implements CRUD, event emitter `onDidChangeThreads`, line-shift logic (`adjustLineNumbers`), rename/delete remapping (`remapThreadsForRename` / `removeThreadsForDeletedPath`). This is the single source of truth consumers read from.
+This extension centers around an in-workspace sidecar JSON store and a thin UI layer that uses VS Code's native Comments panel.
 
-- src/commentController.ts — Wraps VS Code `comments.createCommentController('ai-review', ...)`. Syncs store -> native Comments panel threads and handles submit/reply/resolve/delete actions.
+Core components:
 
-- src/decorationProvider.ts — Gutter icon + line highlight decorations; respects configuration `aiReview.decorationBackgroundColor` and refreshes on thread changes.
+- src/reviewStore.ts — Single source of truth. Persists ReviewData to `.vscode/.ai-review.json`, exposes CRUD, emits `onDidChangeThreads`, and implements anchor adjustment logic: `adjustLineNumbers`, `remapThreadsForRename`, `removeThreadsForDeletedPath`.
 
-- src/hoverProvider.ts — Provides hover contents (add/reply links) above review lines.
+- src/commentController.ts — Bridges ReviewStore ↔ VS Code CommentController (`commentController id: 'ai-review'`). Responsible for mapping threads to native comment threads and handling submit/reply/resolve/delete flows.
 
-- src/commands.ts — Central registration for user-facing commands (addComment, replyToThread, resolveThread, unresolveThread, deleteThread) and wiring to quick input dialogs.
+- src/documentChangeTracker.ts — Listens to `workspace.onDidChangeTextDocument`, computes per-change line deltas (bottom-to-top) and debounces updates before calling `reviewStore.adjustLineNumbers`.
 
-- src/documentChangeTracker.ts — Listens to `workspace.onDidChangeTextDocument`, computes line deltas and calls `reviewStore.adjustLineNumbers` (debounced). Critical for keeping anchors in sync during edits.
+- src/fileLifecycleTracker.ts — Hooks `onDidRenameFiles` and `onDidDeleteFiles` to remap/remove threads based on exact file or folder prefix matches.
 
-- src/fileLifecycleTracker.ts — Listens to file rename/delete events (`onDidRenameFiles` / `onDidDeleteFiles`) and remaps or removes threads in the store.
+- src/decorationProvider.ts — Gutter icon + optional background line decoration. Reacts to `aiReview.decorationBackgroundColor` and thread changes.
 
-- src/extension.ts — Entry point: initializes ReviewStore, providers, trackers, register commands and bootstraps sync into the native Comments panel.
+- src/hoverProvider.ts — Hover UI offering quick add/reply/resolve actions.
 
-- resources/ — Static assets (gutter icon `comment.svg`, extension icon `resources/icon.png`).
+- src/commands.ts — Registers editor/context and comments menu commands (add/reply/resolve/unresolve/delete) and keyboard shortcut (`Ctrl+Shift+R` / `Cmd+Shift+R`).
 
-- dist/ — Bundled extension output from esbuild (used by the packaged VSIX).
+- src/extension.ts — Activation bootstrap: initializes ReviewStore, providers, trackers, and synchronizes store → CommentController.
 
-- .github/ — CI workflows, Copilot plugin marketplace and plugin skeletons (feedback-resolver skill + marketplace manifest).
+Packaging & tooling:
+- esbuild bundling configured via `esbuild.js`; output: `dist/extension.js`.
+- Tests use `@vscode/test-*` harness and compiled unit tests in `out/test/` for fast mocha runs.
+- CI workflow: `.github/workflows/build-vsix.yml` builds, tests, packages VSIX, uploads artifacts, and can publish a GitHub Release on tagged pushes.
 
 ---
 
 ## 3) Key conventions and repo-specific rules
 
-- Sidecar storage: the extension stores threads at `.vscode/.ai-review.json` (workspace folder). This file is ignored by default via `.gitignore`.
+- Sidecar file: `.vscode/.ai-review.json` (workspace folder). This is the primary, authoritative storage and is listed in `.gitignore` by default.
 
-- Thread indexing: `ReviewThread.lineNumber` is stored zero-indexed internally; UI displays are 1-indexed.
+- Data indexing: `ReviewThread.lineNumber` is zero-indexed in the model (UI displays are 1-indexed).
 
-- CommentController identity: the comment controller is created with id `ai-review` (see `createCommentController('ai-review', ...)`). Menu `when` clauses in `package.json` rely on this id; keep it in sync if you rename the controller id.
+- CommentController id: `ai-review`. All `when` clauses in package.json menus/keybindings rely on this exact id (e.g., `commentController == ai-review`).
 
-- `aiReview.autoSave` controls persistence: when `true` (default), changes are written to the sidecar automatically; when `false`, code path currently avoids writing the file.
+- Auto-save behavior: `aiReview.autoSave` (boolean, default `true`) controls whether the store is written to disk after each change; when `false` changes are not persisted automatically.
 
-- Build/bundle: esbuild is used (see `esbuild.js`) and compiled output goes to `dist/extension.js`. Use `npm run compile` for a production build.
+- Line-drift algorithm: Changes are processed bottom-to-top; delta = newlineCount(change.text) - (range.end.line - range.start.line); threads with lines > changeStart are shifted by delta; deleted anchored lines are clamped to the change start. Document edits are debounced before persistence (see DocumentChangeTracker debounce value).
 
-- Tests: Integration tests run inside a real VS Code test host (`vscode-test`). Unit-style tests are compiled to `out/test/*.js` and can be executed with `npx mocha` for targeted runs.
+- File rename/delete handling: Renames remap thread.filePath for file or folder-prefix matches; deletes remove threads under the deleted path.
 
-- Tasks: `.vscode/tasks.json` includes a custom background problem matcher for esbuild watch output; this avoids invalid `$esbuild-watch` references.
+- Comment body compatibility: Comment bodies may include `REVIEW:` and `LLM:` prefixes to remain compatible with the feedback-resolver skill's grep-based discovery.
 
-- Publishing: CI workflow `.github/workflows/build-vsix.yml` packages the VSIX and (on `v*` tags) publishes to GitHub Releases; see plan.md for steps to publish to the Visual Studio Marketplace (requires a PAT set as `VSCE_PAT`).
+- Packaging: The repo uses `npm run package` and `npx @vscode/vsce package` for VSIX creation; CI publishing to the VS Code Marketplace requires a publisher ID set in package.json and a `VSCE_PAT` secret in GitHub.
 
-- Copilot plugin marketplace: plugin source lives under `.github/plugins/feedback-resolver`; the repository-level marketplace manifest is at `.github/plugin/marketplace.json` — plugin names must be kebab-case and `source` paths are relative.
-
-- Replacements/overrides: package.json uses `overrides` to pin known transitive packages (`diff`, `glob`, `minimatch`) to secure versions.
-
-- Comment body prefixes: `REVIEW:` and `LLM:` prefixes are supported for compatibility with the older review-resolver grep-based workflows but are optional; the JSON sidecar is the source of truth.
+- Scripts: package.json exposes these important scripts (see exact values in package.json): `compile`, `package`, `compile-tests`, `test`, `watch`, `lint`, `check-types`.
 
 ---
 
-## 4) Where to look for common edits
+## 4) Storage schema (reference)
 
-- Add a new command/menu: update `src/commands.ts` + `package.json` `contributes.menus` and `contributes.commands` (ensure the command id matches the handler).
+The canonical sidecar is `.vscode/.ai-review.json`. At a high level the shape is:
 
-- Add a UI change to inline comments: modify `src/commentController.ts` and ensure `syncFromStore()` maps to the native `CommentController` API.
+{
+  "threads": [
+    {
+      "id": "string",
+      "filePath": "path/to/file",
+      "lineNumber": 123,        // zero-indexed
+      "state": "unresolved" | "resolved",
+      "comments": [
+        {
+          "id": "string",
+          "author": "name",
+          "body": "string",
+          "createdAt": "ISO-8601",
+          "editedAt": "ISO-8601?"
+        }
+      ],
+      "createdAt": "ISO-8601",
+      "updatedAt": "ISO-8601"
+    }
+  ]
+}
 
-- Change persistence behavior: update `src/reviewStore.ts` (save/load) and be careful with `FileSystemWatcher` re-entrancy.
-
-- Update CI packaging/publishing: modify `.github/workflows/build-vsix.yml` and add `VSCE_PAT` secret to repository settings for Marketplace publishes.
+(See `src/models.ts` for the canonical TypeScript interfaces.)
 
 ---
 
-## 5) Files that are intentionally not authoritative
+## 5) Where to look for common edits and fast entry points
 
-- `src/test/*` are test assets and may set up temporary workspaces; they should be consulted for behavior but not treated as canonical API docs.
-
----
-
-## 6) Quick troubleshooting
-
-- If `vscode-test` fails with update/mutex errors, stop stale CodeSetup processes or reboot the machine; the test harness expects a stable Code installer state.
-- If the extension's comments do not appear in the Comments panel, ensure `commentController.syncFromStore()` is being called after `ReviewStore.initialize()` — see `src/extension.ts`.
+- To add a new command/menu: `src/commands.ts` + update `package.json` `contributes.commands` / `contributes.menus`.
+- To change persistence/format: `src/reviewStore.ts` + `src/models.ts`.
+- To adjust anchor-tracking behavior: `src/documentChangeTracker.ts` + corresponding unit tests under `src/test/`.
+- To modify the Comments UI mapping: `src/commentController.ts` and `src/extension.ts` (ensure `syncFromStore()` is called after store init).
+- To change bundling: `esbuild.js` and `package.json` `compile`/`package` scripts.
 
 ---
 
-Would you like me to also configure any MCP servers (e.g., Playwright) for CI test types or add directives for a specific MCP server? 
+## 6) Copilot skill / plugin / marketplace notes
 
+- Skill (feedback-resolver): `.github/plugins/feedback-resolver/skills/feedback-resolver/...`
+- Plugin manifest: `.github/plugins/feedback-resolver/plugin.json`
+- Marketplace catalog: `.github/plugin/marketplace.json` (must include `name`, `owner`, and plugins[].name in kebab-case and valid `source` paths)
 
-*Created .github/copilot-instructions.md with the above guidance.*
+These files are present and used for local Copilot plugin testing and for publishing the plugin catalog.
+
+---
+
+## 7) Other AI assistant configs
+
+A scan of the repository found no additional assistant rule files (CLAUDE.md, AGENTS.md, .cursorrules, .windsurfrules, CONVENTIONS.md, .clinerules, AIDER_CONVENTIONS.md).
+
+---
+
+Would you like me to configure any MCP servers (e.g., Playwright) for CI test types or add directives for a specific MCP server?
+
+Summary: updated .github/copilot-instructions.md with exact scripts, run/debug steps, architecture, key conventions, and a reference storage schema. Would you like adjustments or extra coverage for any specific areas (packaging, marketplace metadata, or testing)?

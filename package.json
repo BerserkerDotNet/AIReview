@@ -3,7 +3,7 @@
   "publisher": "ai-review-local",
   "displayName": "AI Changes Review",
   "description": "Place and manage REVIEW comments for AI-assisted code review",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -82,6 +82,10 @@
       {
         "command": "ai-review.deleteCommentThread",
         "title": "Delete Thread"
+      },
+      {
+        "command": "ai-review.startEdit",
+        "title": "AI Changes Review: Edit Comment"
       }
     ],
     "menus": {

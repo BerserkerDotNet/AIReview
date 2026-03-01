@@ -111,6 +111,40 @@ export function registerCommands(
             }
         )
     );
+
+    // Edit comment
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            'ai-review.editComment',
+            async (threadId?: string, commentId?: string) => {
+                const id = threadId ?? await pickThread(store);
+                if (!id) { return; }
+                const thread = store.getThread(id);
+                if (!thread) { return; }
+                const items = thread.comments.map(c => ({
+                    label: c.author === 'user' ? 'You' : 'AI',
+                    description: new Date(c.timestamp).toLocaleString(),
+                    detail: c.body,
+                    id: c.id,
+                }));
+                const picked = await vscode.window.showQuickPick(items, {
+                    placeHolder: 'Select a comment to edit',
+                });
+                const cid = commentId ?? picked?.id;
+                if (!cid) { return; }
+                const comment = thread.comments.find(c => c.id === cid);
+                if (!comment) { return; }
+                const newBody = await vscode.window.showInputBox({
+                    prompt: 'Edit comment',
+                    value: comment.body,
+                    validateInput: (val) => val.trim() ? undefined : 'Comment cannot be empty',
+                });
+                if (newBody === undefined) { return; }
+                await store.editComment(id, cid, newBody.trim(), 'user');
+                onThreadsChanged();
+            }
+        )
+    );
 }
 
 async function pickThread(
