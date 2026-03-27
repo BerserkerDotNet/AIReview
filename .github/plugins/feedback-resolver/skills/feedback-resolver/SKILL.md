@@ -32,7 +32,7 @@ Minimum fields to extract per thread:
 - latest comment body
 
 ### 3. Read code context
-Open each thread target file and inspect context around `lineNumber`.
+Open each thread target file and inspect context around `lineNumber`. **`lineNumber` is 1-indexed** — line 1 is the first line of the file. Use the value directly when navigating to or inspecting code; no offset adjustment is needed.
 
 ### 4. Clarify if ambiguous
 **CRITICAL:** Use `ask_user` when a thread requires product decisions, unclear intent, or multiple valid implementations.

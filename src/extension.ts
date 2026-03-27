@@ -26,7 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
 			if (!workspaceUri) { return; }
 			const uri = vscode.Uri.joinPath(workspaceUri, filePath);
 			vscode.window.showTextDocument(uri, {
-				selection: new vscode.Range(lineNumber, 0, lineNumber, 0),
+				selection: new vscode.Range(lineNumber - 1, 0, lineNumber - 1, 0),  // store 1-indexed → VS Code 0-indexed
 				preserveFocus: false,
 			});
 		})
@@ -44,7 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
 	if (workspaceFolder) {
 		store.initialize(workspaceFolder).then(() => {
 			commentController.syncFromStore();
-		}).catch(() => { /* workspace may not exist in tests */ });
+		}).catch((err) => { console.warn('AI Review: Failed to initialize store', err); });
 	}
 
 	// Phase 3 + 4 commands (add, reply, resolve, unresolve, delete)

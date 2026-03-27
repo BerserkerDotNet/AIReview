@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { ReviewStore } from '../reviewStore';
+import { ReviewStore } from '../../reviewStore';
 
 suite('DecorationProvider Test Suite', () => {
     let store: ReviewStore;
@@ -27,9 +27,9 @@ suite('DecorationProvider Test Suite', () => {
     });
 
     test('getThreadsByFile returns threads for matching file only', async () => {
-        await store.addThread('src/app.ts', 5, 'Review A');
-        await store.addThread('src/other.ts', 10, 'Review B');
-        await store.addThread('src/app.ts', 20, 'Review C');
+        await store.addThread('src/app.ts', 6, 'Review A');
+        await store.addThread('src/other.ts', 11, 'Review B');
+        await store.addThread('src/app.ts', 21, 'Review C');
 
         const appThreads = store.getThreadsByFile('src/app.ts');
         assert.strictEqual(appThreads.length, 2);
@@ -37,8 +37,8 @@ suite('DecorationProvider Test Suite', () => {
     });
 
     test('resolved threads are excluded by status filter', async () => {
-        const thread = await store.addThread('src/app.ts', 5, 'Review A');
-        await store.addThread('src/app.ts', 10, 'Review B');
+        const thread = await store.addThread('src/app.ts', 6, 'Review A');
+        await store.addThread('src/app.ts', 11, 'Review B');
         await store.setThreadStatus(thread.id, 'resolved');
 
         const openThreads = store.getThreadsByFile('src/app.ts')
@@ -48,17 +48,17 @@ suite('DecorationProvider Test Suite', () => {
     });
 
     test('thread lineNumber is stored correctly', async () => {
-        const thread = await store.addThread('test.ts', 42, 'Line check');
-        assert.strictEqual(thread.lineNumber, 42);
+        const thread = await store.addThread('test.ts', 43, 'Line check');
+        assert.strictEqual(thread.lineNumber, 43);
     });
 
     test('thread first comment body available for hover preview', async () => {
-        const thread = await store.addThread('test.ts', 0, 'REVIEW: Fix error handling');
+        const thread = await store.addThread('test.ts', 1, 'REVIEW: Fix error handling');
         assert.strictEqual(thread.comments[0].body, 'REVIEW: Fix error handling');
     });
 
     test('onDidChangeThreads fires when thread status changes', async () => {
-        const thread = await store.addThread('test.ts', 0, 'Test');
+        const thread = await store.addThread('test.ts', 1, 'Test');
         let fired = false;
         store.onDidChangeThreads(() => { fired = true; });
         await store.setThreadStatus(thread.id, 'resolved');

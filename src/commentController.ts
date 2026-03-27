@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { ReviewStore } from './reviewStore';
 import { ReviewThread } from './models';
+import { buildCommandUri } from './utils';
 
 export class ReviewCommentController implements vscode.Disposable {
     private controller: vscode.CommentController;
@@ -69,7 +71,7 @@ export class ReviewCommentController implements vscode.Disposable {
         this.disposables.push(
             vscode.commands.registerCommand(
                 'ai-review.startEdit',
-                (arg1?: any, arg2?: any) => this.handleStartEdit(arg1, arg2)
+                (...args: unknown[]) => this.handleStartEdit(args)
             )
         );
 
@@ -113,8 +115,12 @@ export class ReviewCommentController implements vscode.Disposable {
             return undefined;
         }
 
-        const uri = vscode.Uri.joinPath(workspaceFolders[0].uri, reviewThread.filePath);
-        const line = Math.max(0, reviewThread.lineNumber);
+        // If the stored path is absolute (external file), use it directly;
+        // otherwise join with the workspace root.
+        const uri = path.isAbsolute(reviewThread.filePath)
+            ? vscode.Uri.file(reviewThread.filePath)
+            : vscode.Uri.joinPath(workspaceFolders[0].uri, reviewThread.filePath);
+        const line = Math.max(0, reviewThread.lineNumber - 1);  // store 1-indexed → VS Code 0-indexed
         const range = new vscode.Range(line, 0, line, 0);
         const comments = this.toVscodeComments(reviewThread);
 
@@ -142,8 +148,8 @@ export class ReviewCommentController implements vscode.Disposable {
             const md = new vscode.MarkdownString();
             md.appendMarkdown(c.body);
             if (c.author === 'user') {
-                const args = encodeURIComponent(JSON.stringify([reviewThread.id, c.id]));
-                md.appendMarkdown(`\n\n[Edit](command:ai-review.startEdit?${args})`);
+                const editUri = buildCommandUri('ai-review.startEdit', [reviewThread.id, c.id]);
+                md.appendMarkdown(`\n\n[Edit](${editUri})`);
                 md.isTrusted = true;
             }
             return {
@@ -160,7 +166,7 @@ export class ReviewCommentController implements vscode.Disposable {
 
     private async handleNewComment(reply: vscode.CommentReply): Promise<void> {
         const uri = reply.thread.uri;
-        const line = reply.thread.range?.start.line ?? 0;
+        const line = (reply.thread.range?.start.line ?? 0) + 1;  // VS Code 0-indexed → store 1-indexed
         const relativePath = vscode.workspace.asRelativePath(uri, false);
 
         // Dispose the placeholder thread VS Code created; syncFromStore will rebuild
@@ -194,16 +200,16 @@ export class ReviewCommentController implements vscode.Disposable {
         await this.store.deleteThread(threadId);
     }
 
-    private async handleStartEdit(arg1?: any, arg2?: any): Promise<void> {
+    private async handleStartEdit(args: unknown[]): Promise<void> {
         let threadId: string | undefined;
         let commentId: string | undefined;
 
-        if (typeof arg1 === 'string' && typeof arg2 === 'string') {
-            threadId = arg1;
-            commentId = arg2;
-        } else if (Array.isArray(arg1) && arg1.length >= 2) {
-            threadId = arg1[0];
-            commentId = arg1[1];
+        if (args.length >= 2 && typeof args[0] === 'string' && typeof args[1] === 'string') {
+            threadId = args[0];
+            commentId = args[1];
+        } else if (args.length >= 1 && Array.isArray(args[0]) && args[0].length >= 2) {
+            threadId = String(args[0][0]);
+            commentId = String(args[0][1]);
         }
 
         if (!threadId || !commentId) { return; }

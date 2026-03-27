@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { ReviewStore } from './reviewStore';
+import { buildCommandUri } from './utils';
 
 export class DecorationProvider implements vscode.Disposable {
     private disposables: vscode.Disposable[] = [];
@@ -78,16 +79,13 @@ export class DecorationProvider implements vscode.Disposable {
         }
 
         const relativePath = vscode.workspace.asRelativePath(editor.document.uri, false);
-        const threads = this.store.getThreadsByFile(relativePath)
-            .filter(t => t.status === 'open');
+        const threads = this.store.getOpenThreadsByFile(relativePath);
 
         const ranges: vscode.DecorationOptions[] = threads.map(thread => {
-            const line = Math.max(0, Math.min(thread.lineNumber, editor.document.lineCount - 1));
+            const line = Math.max(0, Math.min(thread.lineNumber - 1, editor.document.lineCount - 1));  // store 1-indexed → VS Code 0-indexed
             const range = editor.document.lineAt(line).range;
             const preview = thread.comments[0]?.body ?? '';
-            const commandUri = vscode.Uri.parse(
-                `command:ai-review.goToThread?${encodeURIComponent(JSON.stringify([thread.filePath, thread.lineNumber]))}`
-            );
+            const commandUri = buildCommandUri('ai-review.goToThread', [thread.filePath, thread.lineNumber]);
             const hoverMessage = new vscode.MarkdownString(
                 `💬 **Review:** ${preview}\n\n[Go to thread](${commandUri})`
             );

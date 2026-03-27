@@ -2,8 +2,8 @@
   "name": "ai-review",
   "publisher": "ai-review-local",
   "displayName": "AI Changes Review",
-  "description": "Place and manage REVIEW comments for AI-assisted code review",
-  "version": "0.0.2",
+  "description": "Place and manage REVIEW comments for AI-generated code changes.",
+  "version": "0.0.3",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -147,17 +147,22 @@
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "test:unit": "npm run compile-tests && mocha out/test/unit/**/*.test.js",
+    "test:all": "npm run test:unit && npm test"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^25.3.0",
+    "@types/sinon": "^21.0.0",
     "@types/vscode": "^1.109.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
+    "c8": "^11.0.0",
     "esbuild": "^0.27.2",
     "eslint": "^10.0.1",
     "npm-run-all2": "^8.0.4",
+    "sinon": "^21.0.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0"
   },

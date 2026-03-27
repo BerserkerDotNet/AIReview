@@ -9,6 +9,7 @@ export interface ReviewComment {
 export interface ReviewThread {
     id: string;
     filePath: string;
+    /** lineNumber is 1-indexed (line 1 = first line of the file). */
     lineNumber: number;
     status: 'open' | 'resolved';
     createdAt: string;

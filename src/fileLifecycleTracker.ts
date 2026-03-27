@@ -10,10 +10,10 @@ export class FileLifecycleTracker implements vscode.Disposable {
     constructor(private store: ReviewStore) {
         this.disposables.push(
             vscode.workspace.onDidRenameFiles(e => {
-                void this.handleRename(e);
+                void this.handleRename(e).catch(err => console.warn('AI Review: Error handling rename', err));
             }),
             vscode.workspace.onDidDeleteFiles(e => {
-                void this.handleDelete(e);
+                void this.handleDelete(e).catch(err => console.warn('AI Review: Error handling delete', err));
             })
         );
     }

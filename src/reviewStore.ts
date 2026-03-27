@@ -10,6 +10,7 @@ export class ReviewStore implements vscode.Disposable {
     private data: ReviewData = { version: CURRENT_VERSION, threads: [] };
     private filePath: string | undefined;
     private fileWatcher: vscode.FileSystemWatcher | undefined;
+    private saving = false;
     private disposables: vscode.Disposable[] = [];
 
     private readonly _onDidChangeThreads = new vscode.EventEmitter<void>();
@@ -39,6 +40,14 @@ export class ReviewStore implements vscode.Disposable {
 
     getThreadsByFile(filePath: string): ReviewThread[] {
         return this.data.threads.filter(t => t.filePath === filePath);
+    }
+
+    getOpenThreadsByFile(filePath: string): ReviewThread[] {
+        return this.data.threads.filter(t => t.filePath === filePath && t.status === 'open');
+    }
+
+    getThreadByFileAndLine(filePath: string, lineNumber: number): ReviewThread | undefined {
+        return this.data.threads.find(t => t.filePath === filePath && t.status === 'open' && t.lineNumber === lineNumber);
     }
 
     getThread(threadId: string): ReviewThread | undefined {
@@ -223,7 +232,7 @@ export class ReviewStore implements vscode.Disposable {
     // --- Persistence ---
 
     private async load(): Promise<void> {
-        if (!this.filePath) {
+        if (!this.filePath || this.saving) {
             return;
         }
         try {
@@ -232,8 +241,14 @@ export class ReviewStore implements vscode.Disposable {
             if (parsed.version && Array.isArray(parsed.threads)) {
                 this.data = parsed;
             }
-        } catch {
+        } catch (error) {
             this.data = { version: CURRENT_VERSION, threads: [] };
+            const isFileNotFound =
+                error instanceof vscode.FileSystemError && error.code === 'FileNotFound'
+                || (error as any).code === 'FileNotFound';
+            if (!isFileNotFound) {
+                console.warn('AI Review: Failed to load review data', error);
+            }
         }
     }
 
@@ -247,7 +262,12 @@ export class ReviewStore implements vscode.Disposable {
         if (!autoSave) {
             return;
         }
-        await this.writeDataToPath(this.filePath);
+        this.saving = true;
+        try {
+            await this.writeDataToPath(this.filePath);
+        } finally {
+            this.saving = false;
+        }
     }
 
     private async writeDataToPath(targetPath: string): Promise<void> {
@@ -265,19 +285,29 @@ export class ReviewStore implements vscode.Disposable {
             STORE_FILENAME
         );
         this.fileWatcher = vscode.workspace.createFileSystemWatcher(pattern);
-        this.fileWatcher.onDidChange(async () => {
-            await this.load();
-            this._onDidChangeThreads.fire();
-        });
-        this.fileWatcher.onDidCreate(async () => {
-            await this.load();
-            this._onDidChangeThreads.fire();
-        });
-        this.fileWatcher.onDidDelete(() => {
-            this.data = { version: CURRENT_VERSION, threads: [] };
-            this._onDidChangeThreads.fire();
-        });
-        this.disposables.push(this.fileWatcher);
+        this.disposables.push(
+            this.fileWatcher.onDidChange(async () => {
+                try {
+                    await this.load();
+                    this._onDidChangeThreads.fire();
+                } catch (err) {
+                    console.warn('AI Review: Error reloading on file change', err);
+                }
+            }),
+            this.fileWatcher.onDidCreate(async () => {
+                try {
+                    await this.load();
+                    this._onDidChangeThreads.fire();
+                } catch (err) {
+                    console.warn('AI Review: Error reloading on file create', err);
+                }
+            }),
+            this.fileWatcher.onDidDelete(() => {
+                this.data = { version: CURRENT_VERSION, threads: [] };
+                this._onDidChangeThreads.fire();
+            }),
+            this.fileWatcher,
+        );
     }
 
     dispose(): void {

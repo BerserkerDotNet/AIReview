@@ -70,7 +70,7 @@ Packaging & tooling:
 
 - Sidecar file: `.vscode/.ai-review.json` (workspace folder). This is the primary, authoritative storage and is listed in `.gitignore` by default.
 
-- Data indexing: `ReviewThread.lineNumber` is zero-indexed in the model (UI displays are 1-indexed).
+- Data indexing: `ReviewThread.lineNumber` is 1-indexed in the model (line 1 = first line of the file). VS Code's API is 0-indexed, so the extension converts at boundaries.
 
 - CommentController id: `ai-review`. All `when` clauses in package.json menus/keybindings rely on this exact id (e.g., `commentController == ai-review`).
 
@@ -97,7 +97,7 @@ The canonical sidecar is `.vscode/.ai-review.json`. At a high level the shape is
     {
       "id": "string",
       "filePath": "path/to/file",
-      "lineNumber": 123,        // zero-indexed
+      "lineNumber": 123,        // 1-indexed (line 1 = first line)
       "state": "unresolved" | "resolved",
       "comments": [
         {

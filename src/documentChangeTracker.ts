@@ -60,7 +60,7 @@ export class DocumentChangeTracker implements vscode.Disposable {
             const linesRemoved = change.range.end.line - change.range.start.line;
             const linesAdded = (change.text.match(/\n/g) ?? []).length;
             const delta = linesAdded - linesRemoved;
-            return { changeStart: change.range.start.line, delta };
+            return { changeStart: change.range.start.line + 1, delta };  // VS Code 0-indexed → store 1-indexed
         }).filter(a => a.delta !== 0);
     }
 

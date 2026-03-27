@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { ReviewStore } from '../reviewStore';
+import { ReviewStore } from '../../reviewStore';
 
 suite('ReviewStore Test Suite', () => {
 	let store: ReviewStore;
@@ -31,9 +31,9 @@ suite('ReviewStore Test Suite', () => {
 	});
 
 	test('addThread creates a thread with one comment', async () => {
-		const thread = await store.addThread('src/app.ts', 10, 'REVIEW: Fix this');
+		const thread = await store.addThread('src/app.ts', 11, 'REVIEW: Fix this');
 		assert.strictEqual(thread.filePath, 'src/app.ts');
-		assert.strictEqual(thread.lineNumber, 10);
+		assert.strictEqual(thread.lineNumber, 11);
 		assert.strictEqual(thread.status, 'open');
 		assert.strictEqual(thread.comments.length, 1);
 		assert.strictEqual(thread.comments[0].author, 'user');
@@ -41,21 +41,21 @@ suite('ReviewStore Test Suite', () => {
 	});
 
 	test('getThreads returns all threads', async () => {
-		await store.addThread('a.ts', 1, 'Comment A');
-		await store.addThread('b.ts', 2, 'Comment B');
+		await store.addThread('a.ts', 2, 'Comment A');
+		await store.addThread('b.ts', 3, 'Comment B');
 		assert.strictEqual(store.getThreads().length, 2);
 	});
 
 	test('getThreadsByFile filters by file path', async () => {
-		await store.addThread('a.ts', 1, 'A');
-		await store.addThread('b.ts', 2, 'B');
-		await store.addThread('a.ts', 5, 'A2');
+		await store.addThread('a.ts', 2, 'A');
+		await store.addThread('b.ts', 3, 'B');
+		await store.addThread('a.ts', 6, 'A2');
 		const aThreads = store.getThreadsByFile('a.ts');
 		assert.strictEqual(aThreads.length, 2);
 	});
 
 	test('getThread returns thread by id', async () => {
-		const thread = await store.addThread('x.ts', 1, 'X');
+		const thread = await store.addThread('x.ts', 2, 'X');
 		const found = store.getThread(thread.id);
 		assert.ok(found);
 		assert.strictEqual(found!.id, thread.id);
@@ -66,7 +66,7 @@ suite('ReviewStore Test Suite', () => {
 	});
 
 	test('addComment appends to existing thread', async () => {
-		const thread = await store.addThread('x.ts', 1, 'First');
+		const thread = await store.addThread('x.ts', 2, 'First');
 		const comment = await store.addComment(thread.id, 'llm', 'LLM response');
 		assert.ok(comment);
 		assert.strictEqual(comment!.author, 'llm');
@@ -81,7 +81,7 @@ suite('ReviewStore Test Suite', () => {
 	});
 
 	test('setThreadStatus changes status', async () => {
-		const thread = await store.addThread('x.ts', 1, 'Check');
+		const thread = await store.addThread('x.ts', 2, 'Check');
 		assert.strictEqual(thread.status, 'open');
 		const ok = await store.setThreadStatus(thread.id, 'resolved');
 		assert.strictEqual(ok, true);
@@ -94,7 +94,7 @@ suite('ReviewStore Test Suite', () => {
 	});
 
 	test('deleteThread removes thread', async () => {
-		const thread = await store.addThread('x.ts', 1, 'Delete me');
+		const thread = await store.addThread('x.ts', 2, 'Delete me');
 		assert.strictEqual(store.getThreads().length, 1);
 		const ok = await store.deleteThread(thread.id);
 		assert.strictEqual(ok, true);
@@ -107,7 +107,7 @@ suite('ReviewStore Test Suite', () => {
 	});
 
 	test('persists data to .vscode/.ai-review.json', async () => {
-		await store.addThread('file.ts', 5, 'Persist me');
+		await store.addThread('file.ts', 6, 'Persist me');
 		const filePath = path.join(tmpDir, '.vscode', '.ai-review.json');
 		assert.ok(fs.existsSync(filePath));
 		const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
@@ -117,7 +117,7 @@ suite('ReviewStore Test Suite', () => {
 	});
 
 	test('loads persisted data on re-initialize', async () => {
-		await store.addThread('file.ts', 5, 'Survive reload');
+		await store.addThread('file.ts', 6, 'Survive reload');
 		store.dispose();
 
 		const store2 = new ReviewStore();
@@ -128,15 +128,15 @@ suite('ReviewStore Test Suite', () => {
 	});
 
 	test('remapThreadsForRename updates file path for renamed file', async () => {
-		const thread = await store.addThread('src\\old.ts', 2, 'Rename me');
+		const thread = await store.addThread('src\\old.ts', 3, 'Rename me');
 		const changed = await store.remapThreadsForRename('src\\old.ts', 'src\\new.ts');
 		assert.strictEqual(changed, 1);
 		assert.strictEqual(store.getThread(thread.id)!.filePath, 'src\\new.ts');
 	});
 
 	test('remapThreadsForRename updates nested paths for folder rename', async () => {
-		const threadA = await store.addThread('src\\old\\a.ts', 1, 'A');
-		const threadB = await store.addThread('src\\old\\nested\\b.ts', 1, 'B');
+		const threadA = await store.addThread('src\\old\\a.ts', 2, 'A');
+		const threadB = await store.addThread('src\\old\\nested\\b.ts', 2, 'B');
 		const changed = await store.remapThreadsForRename('src\\old', 'src\\new');
 		assert.strictEqual(changed, 2);
 		assert.strictEqual(store.getThread(threadA.id)!.filePath, 'src\\new\\a.ts');
@@ -144,9 +144,9 @@ suite('ReviewStore Test Suite', () => {
 	});
 
 	test('removeThreadsForDeletedPath removes threads for deleted file and folder', async () => {
-		await store.addThread('src\\keep.ts', 1, 'Keep');
-		await store.addThread('src\\drop.ts', 2, 'Drop file');
-		await store.addThread('src\\folder\\drop2.ts', 3, 'Drop folder');
+		await store.addThread('src\\keep.ts', 2, 'Keep');
+		await store.addThread('src\\drop.ts', 3, 'Drop file');
+		await store.addThread('src\\folder\\drop2.ts', 4, 'Drop folder');
 		const removedFile = await store.removeThreadsForDeletedPath('src\\drop.ts');
 		const removedFolder = await store.removeThreadsForDeletedPath('src\\folder');
 		assert.strictEqual(removedFile, 1);
@@ -158,7 +158,7 @@ suite('ReviewStore Test Suite', () => {
 	test('onDidChangeThreads fires on addThread', async () => {
 		let fired = false;
 		store.onDidChangeThreads(() => { fired = true; });
-		await store.addThread('x.ts', 1, 'Fire event');
+		await store.addThread('x.ts', 2, 'Fire event');
 		assert.strictEqual(fired, true);
 	});
 });

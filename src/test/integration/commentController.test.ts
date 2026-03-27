@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { ReviewStore } from '../reviewStore';
+import { ReviewStore } from '../../reviewStore';
 
 suite('Phase 3 & 4 – Commands and Comment Controller Tests', () => {
     let store: ReviewStore;
@@ -25,7 +25,7 @@ suite('Phase 3 & 4 – Commands and Comment Controller Tests', () => {
     // --- Phase 3: comment creation ---
 
     test('addThread stores a new thread with user comment', async () => {
-        const thread = await store.addThread('src/foo.ts', 5, 'REVIEW: Something here');
+        const thread = await store.addThread('src/foo.ts', 6, 'REVIEW: Something here');
         assert.strictEqual(thread.comments.length, 1);
         assert.strictEqual(thread.comments[0].author, 'user');
         assert.strictEqual(thread.comments[0].body, 'REVIEW: Something here');
@@ -33,7 +33,7 @@ suite('Phase 3 & 4 – Commands and Comment Controller Tests', () => {
     });
 
     test('addComment adds user reply to thread', async () => {
-        const thread = await store.addThread('src/foo.ts', 3, 'REVIEW: Check this');
+        const thread = await store.addThread('src/foo.ts', 4, 'REVIEW: Check this');
         await store.addComment(thread.id, 'user', 'I disagree');
         const updated = store.getThread(thread.id)!;
         assert.strictEqual(updated.comments.length, 2);
@@ -41,14 +41,14 @@ suite('Phase 3 & 4 – Commands and Comment Controller Tests', () => {
     });
 
     test('addComment adds llm reply to thread', async () => {
-        const thread = await store.addThread('src/foo.ts', 3, 'REVIEW: Check this');
+        const thread = await store.addThread('src/foo.ts', 4, 'REVIEW: Check this');
         await store.addComment(thread.id, 'llm', 'LLM: Here is my suggestion');
         const updated = store.getThread(thread.id)!;
         assert.strictEqual(updated.comments[1].author, 'llm');
     });
 
     test('multi-turn conversation stores all comments in order', async () => {
-        const thread = await store.addThread('src/foo.ts', 1, 'REVIEW: Turn 1');
+        const thread = await store.addThread('src/foo.ts', 2, 'REVIEW: Turn 1');
         await store.addComment(thread.id, 'llm', 'LLM: Turn 2');
         await store.addComment(thread.id, 'user', 'Turn 3');
         await store.addComment(thread.id, 'llm', 'LLM: Turn 4');
@@ -63,27 +63,27 @@ suite('Phase 3 & 4 – Commands and Comment Controller Tests', () => {
     // --- Phase 4: resolve/unresolve/delete ---
 
     test('resolving a thread sets status to resolved', async () => {
-        const thread = await store.addThread('src/foo.ts', 1, 'Fix me');
+        const thread = await store.addThread('src/foo.ts', 2, 'Fix me');
         await store.setThreadStatus(thread.id, 'resolved');
         assert.strictEqual(store.getThread(thread.id)!.status, 'resolved');
     });
 
     test('unresolving a thread sets status back to open', async () => {
-        const thread = await store.addThread('src/foo.ts', 1, 'Fix me');
+        const thread = await store.addThread('src/foo.ts', 2, 'Fix me');
         await store.setThreadStatus(thread.id, 'resolved');
         await store.setThreadStatus(thread.id, 'open');
         assert.strictEqual(store.getThread(thread.id)!.status, 'open');
     });
 
     test('deleting a thread removes it from the store', async () => {
-        const thread = await store.addThread('src/foo.ts', 1, 'Delete me');
+        const thread = await store.addThread('src/foo.ts', 2, 'Delete me');
         await store.deleteThread(thread.id);
         assert.strictEqual(store.getThread(thread.id), undefined);
         assert.strictEqual(store.getThreads().length, 0);
     });
 
     test('resolved threads persist across reload', async () => {
-        const thread = await store.addThread('src/foo.ts', 1, 'Persist resolved');
+        const thread = await store.addThread('src/foo.ts', 2, 'Persist resolved');
         await store.setThreadStatus(thread.id, 'resolved');
 
         store.dispose();
@@ -94,7 +94,7 @@ suite('Phase 3 & 4 – Commands and Comment Controller Tests', () => {
     });
 
     test('onDidChangeThreads fires on resolve', async () => {
-        const thread = await store.addThread('src/foo.ts', 1, 'Watch me');
+        const thread = await store.addThread('src/foo.ts', 2, 'Watch me');
         let fired = false;
         store.onDidChangeThreads(() => { fired = true; });
         await store.setThreadStatus(thread.id, 'resolved');
@@ -102,7 +102,7 @@ suite('Phase 3 & 4 – Commands and Comment Controller Tests', () => {
     });
 
     test('onDidChangeThreads fires on delete', async () => {
-        const thread = await store.addThread('src/foo.ts', 1, 'Watch me');
+        const thread = await store.addThread('src/foo.ts', 2, 'Watch me');
         let fired = false;
         store.onDidChangeThreads(() => { fired = true; });
         await store.deleteThread(thread.id);
@@ -111,8 +111,8 @@ suite('Phase 3 & 4 – Commands and Comment Controller Tests', () => {
 
     test('syncFromStore - CommentController maps threads correctly', async () => {
         // Add two threads
-        await store.addThread('a.ts', 0, 'Thread A');
-        await store.addThread('b.ts', 5, 'Thread B');
+        await store.addThread('a.ts', 1, 'Thread A');
+        await store.addThread('b.ts', 6, 'Thread B');
 
         // Verify all threads exist
         assert.strictEqual(store.getThreads().length, 2);
