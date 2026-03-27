@@ -1,35 +1,59 @@
-import * as vscode from 'vscode';
 import * as path from 'path';
 import { ReviewData, ReviewThread, ReviewComment } from './models';
 
-const STORE_DIRNAME = '.vscode';
-const STORE_FILENAME = '.ai-review.json';
 const CURRENT_VERSION = 1;
 
-export class ReviewStore implements vscode.Disposable {
-    private data: ReviewData = { version: CURRENT_VERSION, threads: [] };
-    private filePath: string | undefined;
-    private fileWatcher: vscode.FileSystemWatcher | undefined;
-    private saving = false;
-    private disposables: vscode.Disposable[] = [];
+/** Minimal event interface matching vscode.EventEmitter's shape */
+interface SimpleEvent<T> {
+    (listener: (e: T) => void): { dispose(): void };
+}
 
-    private readonly _onDidChangeThreads = new vscode.EventEmitter<void>();
+class SimpleEventEmitter<T> {
+    private listeners: Array<(e: T) => void> = [];
+
+    readonly event: SimpleEvent<T> = (listener) => {
+        this.listeners.push(listener);
+        return { dispose: () => { this.listeners = this.listeners.filter(l => l !== listener); } };
+    };
+
+    fire(data: T): void {
+        for (const listener of this.listeners) {
+            listener(data);
+        }
+    }
+
+    dispose(): void {
+        this.listeners = [];
+    }
+}
+
+/** Persistence interface — implemented by ReviewStorePersistence for real I/O, or mocked in tests */
+export interface IPersistence {
+    save(data: ReviewData): Promise<void>;
+}
+
+export class ReviewStore {
+    private data: ReviewData = { version: CURRENT_VERSION, threads: [] };
+    private persistence: IPersistence | undefined;
+
+    private readonly _onDidChangeThreads = new SimpleEventEmitter<void>();
     public readonly onDidChangeThreads = this._onDidChangeThreads.event;
 
-    constructor() {
-        this.disposables.push(this._onDidChangeThreads);
+    /**
+     * Attach a persistence backend. Called by extension.ts after creating both objects.
+     */
+    setPersistence(persistence: IPersistence): void {
+        this.persistence = persistence;
     }
 
     /**
-     * Initialize the store for the given workspace folder.
-     * Loads existing data and starts watching for external changes.
+     * Load data from an external source (called after persistence.initialize()).
      */
-    async initialize(workspaceFolder: vscode.WorkspaceFolder): Promise<void> {
-        const storeDirPath = path.join(workspaceFolder.uri.fsPath, STORE_DIRNAME);
-        this.filePath = path.join(storeDirPath, STORE_FILENAME);
-        await vscode.workspace.fs.createDirectory(vscode.Uri.file(storeDirPath));
-        await this.load();
-        this.watchFile();
+    loadData(data: ReviewData): void {
+        if (data.version && Array.isArray(data.threads)) {
+            this.data = data;
+        }
+        this._onDidChangeThreads.fire();
     }
 
     // --- CRUD Operations ---
@@ -52,6 +76,10 @@ export class ReviewStore implements vscode.Disposable {
 
     getThread(threadId: string): ReviewThread | undefined {
         return this.data.threads.find(t => t.id === threadId);
+    }
+
+    getData(): ReviewData {
+        return this.data;
     }
 
     async addThread(filePath: string, lineNumber: number, body: string): Promise<ReviewThread> {
@@ -229,91 +257,12 @@ export class ReviewStore implements vscode.Disposable {
         return removedCount;
     }
 
-    // --- Persistence ---
-
-    private async load(): Promise<void> {
-        if (!this.filePath || this.saving) {
-            return;
-        }
-        try {
-            const content = await vscode.workspace.fs.readFile(vscode.Uri.file(this.filePath));
-            const parsed = JSON.parse(Buffer.from(content).toString('utf-8')) as ReviewData;
-            if (parsed.version && Array.isArray(parsed.threads)) {
-                this.data = parsed;
-            }
-        } catch (error) {
-            this.data = { version: CURRENT_VERSION, threads: [] };
-            const isFileNotFound =
-                error instanceof vscode.FileSystemError && error.code === 'FileNotFound'
-                || (error as any).code === 'FileNotFound';
-            if (!isFileNotFound) {
-                console.warn('AI Review: Failed to load review data', error);
-            }
-        }
-    }
-
     private async save(): Promise<void> {
-        if (!this.filePath) {
-            return;
-        }
-        const autoSave = vscode.workspace
-            .getConfiguration('aiReview')
-            .get<boolean>('autoSave', true);
-        if (!autoSave) {
-            return;
-        }
-        this.saving = true;
-        try {
-            await this.writeDataToPath(this.filePath);
-        } finally {
-            this.saving = false;
-        }
-    }
-
-    private async writeDataToPath(targetPath: string): Promise<void> {
-        await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(targetPath)));
-        const content = JSON.stringify(this.data, null, 2);
-        await vscode.workspace.fs.writeFile(vscode.Uri.file(targetPath), Buffer.from(content, 'utf-8'));
-    }
-
-    private watchFile(): void {
-        if (!this.filePath) {
-            return;
-        }
-        const pattern = new vscode.RelativePattern(
-            path.dirname(this.filePath),
-            STORE_FILENAME
-        );
-        this.fileWatcher = vscode.workspace.createFileSystemWatcher(pattern);
-        this.disposables.push(
-            this.fileWatcher.onDidChange(async () => {
-                try {
-                    await this.load();
-                    this._onDidChangeThreads.fire();
-                } catch (err) {
-                    console.warn('AI Review: Error reloading on file change', err);
-                }
-            }),
-            this.fileWatcher.onDidCreate(async () => {
-                try {
-                    await this.load();
-                    this._onDidChangeThreads.fire();
-                } catch (err) {
-                    console.warn('AI Review: Error reloading on file create', err);
-                }
-            }),
-            this.fileWatcher.onDidDelete(() => {
-                this.data = { version: CURRENT_VERSION, threads: [] };
-                this._onDidChangeThreads.fire();
-            }),
-            this.fileWatcher,
-        );
+        await this.persistence?.save(this.data);
     }
 
     dispose(): void {
-        for (const d of this.disposables) {
-            d.dispose();
-        }
+        this._onDidChangeThreads.dispose();
     }
 }
 

@@ -4,20 +4,26 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { ReviewStore } from '../../reviewStore';
+import { ReviewStorePersistence } from '../../reviewStorePersistence';
 
 suite('ReviewStore — Extended Tests', () => {
     let store: ReviewStore;
+    let persistence: ReviewStorePersistence;
     let tmpDir: string;
     let workspaceFolder: vscode.WorkspaceFolder;
 
     setup(async () => {
         tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-review-ext-test-'));
         workspaceFolder = { uri: vscode.Uri.file(tmpDir), name: 'test', index: 0 };
+        persistence = new ReviewStorePersistence();
         store = new ReviewStore();
-        await store.initialize(workspaceFolder);
+        store.setPersistence(persistence);
+        const data = await persistence.initialize(workspaceFolder);
+        store.loadData(data);
     });
 
     teardown(() => {
+        persistence.dispose();
         store.dispose();
         fs.rmSync(tmpDir, { recursive: true, force: true });
     });
@@ -66,12 +72,17 @@ suite('ReviewStore — Extended Tests', () => {
         const thread = await store.addThread('src/app.ts', 6, 'Original');
         const commentId = thread.comments[0].id;
         await store.editComment(thread.id, commentId, 'Persisted edit');
+        persistence.dispose();
         store.dispose();
 
+        const persistence2 = new ReviewStorePersistence();
         const store2 = new ReviewStore();
-        await store2.initialize(workspaceFolder);
+        store2.setPersistence(persistence2);
+        const data2 = await persistence2.initialize(workspaceFolder);
+        store2.loadData(data2);
         const reloaded = store2.getThread(thread.id)!;
         assert.strictEqual(reloaded.comments[0].body, 'Persisted edit');
+        persistence2.dispose();
         store2.dispose();
     });
 
@@ -170,10 +181,15 @@ suite('ReviewStore — Extended Tests', () => {
         const thread = await store.addThread('src/app.ts', 2, body);
         assert.strictEqual(thread.comments[0].body, body);
         // Verify persistence
+        persistence.dispose();
         store.dispose();
+        const persistence2 = new ReviewStorePersistence();
         const store2 = new ReviewStore();
-        await store2.initialize(workspaceFolder);
+        store2.setPersistence(persistence2);
+        const data2 = await persistence2.initialize(workspaceFolder);
+        store2.loadData(data2);
         assert.strictEqual(store2.getThread(thread.id)!.comments[0].body, body);
+        persistence2.dispose();
         store2.dispose();
     });
 });

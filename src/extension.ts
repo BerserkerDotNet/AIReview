@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ReviewStore } from './reviewStore';
+import { ReviewStorePersistence } from './reviewStorePersistence';
 import { DecorationProvider } from './decorationProvider';
 import { ReviewHoverProvider } from './hoverProvider';
 import { ReviewCommentController } from './commentController';
@@ -8,10 +9,14 @@ import { DocumentChangeTracker } from './documentChangeTracker';
 import { FileLifecycleTracker } from './fileLifecycleTracker';
 
 let store: ReviewStore | undefined;
+let persistence: ReviewStorePersistence | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
+	persistence = new ReviewStorePersistence();
 	store = new ReviewStore();
+	store.setPersistence(persistence);
 	context.subscriptions.push(store);
+	context.subscriptions.push(persistence);
 
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
@@ -40,11 +45,17 @@ export function activate(context: vscode.ExtensionContext) {
 	const commentController = new ReviewCommentController(store);
 	context.subscriptions.push(commentController);
 
-	// Initialize store once, then sync comment threads into the native Comments panel
+	// Initialize persistence, then load data into store and sync comment threads
 	if (workspaceFolder) {
-		store.initialize(workspaceFolder).then(() => {
+		persistence.initialize(workspaceFolder).then(data => {
+			store!.loadData(data);
 			commentController.syncFromStore();
 		}).catch((err) => { console.warn('AI Review: Failed to initialize store', err); });
+
+		// Handle external file changes (e.g. another editor modifying .ai-review.json)
+		persistence.onExternalChange(data => {
+			store!.loadData(data);
+		});
 	}
 
 	// Phase 3 + 4 commands (add, reply, resolve, unresolve, delete)
@@ -61,4 +72,5 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
 	store = undefined;
+	persistence = undefined;
 }

@@ -148,7 +148,7 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vscode-test",
-    "test:unit": "npm run compile-tests && mocha out/test/unit/**/*.test.js",
+    "test:unit": "npm run compile-tests && mocha --ui tdd out/test/unit/**/*.test.js",
     "test:all": "npm run test:unit && npm test"
   },
   "devDependencies": {

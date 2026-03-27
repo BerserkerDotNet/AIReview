@@ -4,20 +4,26 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { ReviewStore } from '../../reviewStore';
+import { ReviewStorePersistence } from '../../reviewStorePersistence';
 
 suite('End-to-End Workflow Tests', () => {
     let store: ReviewStore;
+    let persistence: ReviewStorePersistence;
     let tmpDir: string;
     let workspaceFolder: vscode.WorkspaceFolder;
 
     setup(async () => {
         tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-review-e2e-'));
         workspaceFolder = { uri: vscode.Uri.file(tmpDir), name: 'test', index: 0 };
+        persistence = new ReviewStorePersistence();
         store = new ReviewStore();
-        await store.initialize(workspaceFolder);
+        store.setPersistence(persistence);
+        const data = await persistence.initialize(workspaceFolder);
+        store.loadData(data);
     });
 
     teardown(() => {
+        persistence.dispose();
         store.dispose();
         fs.rmSync(tmpDir, { recursive: true, force: true });
     });
@@ -153,9 +159,13 @@ suite('End-to-End Workflow Tests', () => {
         await store.addComment(t2.id, 'user', 'User followup');
 
         // Reload
+        persistence.dispose();
         store.dispose();
+        const persistence2 = new ReviewStorePersistence();
         const store2 = new ReviewStore();
-        await store2.initialize(workspaceFolder);
+        store2.setPersistence(persistence2);
+        const data2 = await persistence2.initialize(workspaceFolder);
+        store2.loadData(data2);
 
         // Verify all state survived
         assert.strictEqual(store2.getThreads().length, 2);
@@ -168,10 +178,14 @@ suite('End-to-End Workflow Tests', () => {
         assert.strictEqual(reloaded2.status, 'open');
         assert.strictEqual(reloaded2.comments.length, 2);
 
+        persistence2.dispose();
         store2.dispose();
         // Re-create for teardown
+        persistence = new ReviewStorePersistence();
         store = new ReviewStore();
-        await store.initialize(workspaceFolder);
+        store.setPersistence(persistence);
+        const data = await persistence.initialize(workspaceFolder);
+        store.loadData(data);
     });
 
     // --- Event counting across full workflow ---

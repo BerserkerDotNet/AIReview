@@ -4,20 +4,26 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { ReviewStore } from '../../reviewStore';
+import { ReviewStorePersistence } from '../../reviewStorePersistence';
 
 suite('Phase 3 & 4 – Commands and Comment Controller Tests', () => {
     let store: ReviewStore;
+    let persistence: ReviewStorePersistence;
     let tmpDir: string;
     let workspaceFolder: vscode.WorkspaceFolder;
 
     setup(async () => {
         tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-review-cmd-test-'));
         workspaceFolder = { uri: vscode.Uri.file(tmpDir), name: 'test', index: 0 };
+        persistence = new ReviewStorePersistence();
         store = new ReviewStore();
-        await store.initialize(workspaceFolder);
+        store.setPersistence(persistence);
+        const data = await persistence.initialize(workspaceFolder);
+        store.loadData(data);
     });
 
     teardown(() => {
+        persistence.dispose();
         store.dispose();
         fs.rmSync(tmpDir, { recursive: true, force: true });
     });
@@ -86,10 +92,15 @@ suite('Phase 3 & 4 – Commands and Comment Controller Tests', () => {
         const thread = await store.addThread('src/foo.ts', 2, 'Persist resolved');
         await store.setThreadStatus(thread.id, 'resolved');
 
+        persistence.dispose();
         store.dispose();
+        const persistence2 = new ReviewStorePersistence();
         const store2 = new ReviewStore();
-        await store2.initialize(workspaceFolder);
+        store2.setPersistence(persistence2);
+        const data2 = await persistence2.initialize(workspaceFolder);
+        store2.loadData(data2);
         assert.strictEqual(store2.getThread(thread.id)!.status, 'resolved');
+        persistence2.dispose();
         store2.dispose();
     });
 

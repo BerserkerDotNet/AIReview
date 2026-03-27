@@ -4,10 +4,12 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { ReviewStore } from '../../reviewStore';
+import { ReviewStorePersistence } from '../../reviewStorePersistence';
 import { FileLifecycleTracker } from '../../fileLifecycleTracker';
 
 suite('FileLifecycleTracker Test Suite', () => {
     let store: ReviewStore;
+    let persistence: ReviewStorePersistence;
     let tracker: FileLifecycleTracker;
     let tmpDir: string;
     let workspaceFolder: vscode.WorkspaceFolder;
@@ -15,13 +17,17 @@ suite('FileLifecycleTracker Test Suite', () => {
     setup(async () => {
         tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-review-flt-test-'));
         workspaceFolder = { uri: vscode.Uri.file(tmpDir), name: 'test', index: 0 };
+        persistence = new ReviewStorePersistence();
         store = new ReviewStore();
-        await store.initialize(workspaceFolder);
+        store.setPersistence(persistence);
+        const data = await persistence.initialize(workspaceFolder);
+        store.loadData(data);
         tracker = new FileLifecycleTracker(store);
     });
 
     teardown(() => {
         tracker.dispose();
+        persistence.dispose();
         store.dispose();
         fs.rmSync(tmpDir, { recursive: true, force: true });
     });

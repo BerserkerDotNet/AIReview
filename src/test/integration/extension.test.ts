@@ -4,9 +4,11 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { ReviewStore } from '../../reviewStore';
+import { ReviewStorePersistence } from '../../reviewStorePersistence';
 
 suite('ReviewStore Test Suite', () => {
 	let store: ReviewStore;
+	let persistence: ReviewStorePersistence;
 	let tmpDir: string;
 	let workspaceFolder: vscode.WorkspaceFolder;
 
@@ -17,11 +19,15 @@ suite('ReviewStore Test Suite', () => {
 			name: 'test',
 			index: 0,
 		};
+		persistence = new ReviewStorePersistence();
 		store = new ReviewStore();
-		await store.initialize(workspaceFolder);
+		store.setPersistence(persistence);
+		const data = await persistence.initialize(workspaceFolder);
+		store.loadData(data);
 	});
 
 	teardown(() => {
+		persistence.dispose();
 		store.dispose();
 		fs.rmSync(tmpDir, { recursive: true, force: true });
 	});
@@ -118,12 +124,17 @@ suite('ReviewStore Test Suite', () => {
 
 	test('loads persisted data on re-initialize', async () => {
 		await store.addThread('file.ts', 6, 'Survive reload');
+		persistence.dispose();
 		store.dispose();
 
+		const persistence2 = new ReviewStorePersistence();
 		const store2 = new ReviewStore();
-		await store2.initialize(workspaceFolder);
+		store2.setPersistence(persistence2);
+		const data2 = await persistence2.initialize(workspaceFolder);
+		store2.loadData(data2);
 		assert.strictEqual(store2.getThreads().length, 1);
 		assert.strictEqual(store2.getThreads()[0].comments[0].body, 'Survive reload');
+		persistence2.dispose();
 		store2.dispose();
 	});
 
