@@ -29,9 +29,8 @@ suite('DocumentChangeTracker — Integration Tests', () => {
         tracker.dispose();
         persistence.dispose();
         store.dispose();
-        // Close all editors so VS Code releases file handles on temp files
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
-        fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+        try { fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 }); } catch { /* CI file lock */ }
     });
 
     // Helper: create a file, open it, and return the editor + relative path

@@ -29,9 +29,8 @@ suite('DocumentChangeTracker — Edge Case Integration Tests', () => {
         tracker.dispose();
         persistence.dispose();
         store.dispose();
-        // Close all editors so VS Code releases file handles on temp files
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
-        fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+        try { fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 }); } catch { /* CI file lock */ }
     });
 
     async function openFile(name: string, lineCount: number) {

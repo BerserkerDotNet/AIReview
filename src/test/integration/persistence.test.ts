@@ -125,22 +125,20 @@ suite('Persistence Edge Cases', () => {
         await store.addThread('x.ts', 1, 'Existing thread');
         assert.strictEqual(store.getThreads().length, 1);
 
-        // Listen for the store change event that fires when the watcher detects deletion
-        const changed = new Promise<void>(resolve => {
-            store.onDidChangeThreads(() => resolve());
-        });
-
         // Delete the file externally
         fs.unlinkSync(storeFilePath);
 
-        // Wait for the file watcher → persistence.onExternalChange → store.loadData chain
-        // Use a race with a timeout to avoid hanging if the watcher doesn't fire in CI
-        const timeout = new Promise<void>(resolve => setTimeout(resolve, 2000));
-        await Promise.race([changed, timeout]);
+        // Re-initialize — simulates what happens when the extension reloads
+        // after an external deletion. This is more reliable than depending on
+        // file watcher timing which is non-deterministic in CI.
+        persistence.dispose();
+        persistence = new ReviewStorePersistence();
+        store.setPersistence(persistence);
+        const data = await persistence.initialize(workspaceFolder);
+        store.loadData(data);
 
-        // Store should have been reset by the watcher's onDidDelete → loadData(empty)
-        // or still have 1 thread if the watcher didn't fire (CI timing)
-        assert.ok(Array.isArray(store.getThreads()));
+        // Store should start fresh since the file was deleted
+        assert.strictEqual(store.getThreads().length, 0);
     });
 
     test('initializing without existing store file creates empty store', async () => {
