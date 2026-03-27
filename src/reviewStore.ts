@@ -175,12 +175,8 @@ export class ReviewStore {
             if (thread.filePath !== filePath) { continue; }
 
             if (thread.lineNumber > changeStart) {
-                // Thread is below the edit — shift it
+                // Thread is below or inside the edit — shift it (clamped to changeStart)
                 thread.lineNumber = Math.max(changeStart, thread.lineNumber + delta);
-                changed = true;
-            } else if (delta < 0 && thread.lineNumber > changeStart + delta) {
-                // Thread's line was inside the deleted range — clamp to change start
-                thread.lineNumber = changeStart;
                 changed = true;
             }
         }
