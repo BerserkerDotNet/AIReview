@@ -25,11 +25,13 @@ suite('DocumentChangeTracker — Edge Case Integration Tests', () => {
         tracker = new DocumentChangeTracker(store);
     });
 
-    teardown(() => {
+    teardown(async () => {
         tracker.dispose();
         persistence.dispose();
         store.dispose();
-        fs.rmSync(tmpDir, { recursive: true, force: true });
+        // Close all editors so VS Code releases file handles on temp files
+        await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+        fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
     });
 
     async function openFile(name: string, lineCount: number) {

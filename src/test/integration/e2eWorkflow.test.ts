@@ -98,15 +98,15 @@ suite('End-to-End Workflow Tests', () => {
     // --- Folder rename: threads in nested files follow folder rename ---
 
     test('threads follow folder rename', async () => {
-        const t1 = await store.addThread('src/components/Button.tsx', 6, 'Button thread');
-        const t2 = await store.addThread('src/components/forms/Input.tsx', 11, 'Input thread');
-        const t3 = await store.addThread('src/utils/helper.ts', 4, 'Unrelated');
+        const t1 = await store.addThread(path.join('src', 'components', 'Button.tsx'), 6, 'Button thread');
+        const t2 = await store.addThread(path.join('src', 'components', 'forms', 'Input.tsx'), 11, 'Input thread');
+        const t3 = await store.addThread(path.join('src', 'utils', 'helper.ts'), 4, 'Unrelated');
 
-        await store.remapThreadsForRename('src/components', 'src/ui');
+        await store.remapThreadsForRename(path.join('src', 'components'), path.join('src', 'ui'));
 
         assert.ok(store.getThread(t1.id)!.filePath.startsWith('src'));
         assert.ok(!store.getThread(t1.id)!.filePath.includes('components'));
-        assert.strictEqual(store.getThread(t3.id)!.filePath, 'src/utils/helper.ts');
+        assert.strictEqual(store.getThread(t3.id)!.filePath, path.join('src', 'utils', 'helper.ts'));
     });
 
     // --- File delete: add thread → delete file → verify threads removed ---
@@ -197,7 +197,7 @@ suite('End-to-End Workflow Tests', () => {
         const thread = await store.addThread('x.ts', 1, 'Event counting'); // +1
         await store.addComment(thread.id, 'llm', 'Reply'); // +1
         await store.editComment(thread.id, thread.comments[0].id, 'Edited'); // +1
-        await store.adjustLineNumbers('x.ts', 1, 3); // +1 (thread moves)
+        await store.adjustLineNumbers('x.ts', 0, 3); // +1 (thread at 1 > 0, so it shifts)
         await store.setThreadStatus(thread.id, 'resolved'); // +1
         await store.deleteThread(thread.id); // +1
 

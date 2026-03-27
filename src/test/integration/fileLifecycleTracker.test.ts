@@ -42,14 +42,14 @@ suite('FileLifecycleTracker Test Suite', () => {
     });
 
     test('remapThreadsForRename handles folder rename with nested files', async () => {
-        const t1 = await store.addThread('src/old/a.ts', 2, 'A');
-        const t2 = await store.addThread('src/old/sub/b.ts', 3, 'B');
-        const t3 = await store.addThread('src/other/c.ts', 4, 'C');
+        const t1 = await store.addThread(path.join('src', 'old', 'a.ts'), 2, 'A');
+        const t2 = await store.addThread(path.join('src', 'old', 'sub', 'b.ts'), 3, 'B');
+        const t3 = await store.addThread(path.join('src', 'other', 'c.ts'), 4, 'C');
         
-        const changed = await store.remapThreadsForRename('src/old', 'src/new');
+        const changed = await store.remapThreadsForRename(path.join('src', 'old'), path.join('src', 'new'));
         assert.strictEqual(changed, 2);
         assert.ok(store.getThread(t1.id)!.filePath.startsWith('src'));
-        assert.ok(store.getThread(t3.id)!.filePath === 'src/other/c.ts'); // unchanged
+        assert.ok(store.getThread(t3.id)!.filePath === path.join('src', 'other', 'c.ts')); // unchanged
     });
 
     test('remapThreadsForRename is case-insensitive on match', async () => {
@@ -68,10 +68,10 @@ suite('FileLifecycleTracker Test Suite', () => {
     });
 
     test('removeThreadsForDeletedPath removes folder contents', async () => {
-        await store.addThread('src/folder/a.ts', 2, 'A');
-        await store.addThread('src/folder/sub/b.ts', 3, 'B');
+        await store.addThread(path.join('src', 'folder', 'a.ts'), 2, 'A');
+        await store.addThread(path.join('src', 'folder', 'sub', 'b.ts'), 3, 'B');
         await store.addThread('src/other.ts', 4, 'Other');
-        const removed = await store.removeThreadsForDeletedPath('src/folder');
+        const removed = await store.removeThreadsForDeletedPath(path.join('src', 'folder'));
         assert.strictEqual(removed, 2);
         assert.strictEqual(store.getThreads().length, 1);
     });

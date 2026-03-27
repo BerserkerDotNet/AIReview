@@ -125,17 +125,21 @@ suite('Persistence Edge Cases', () => {
         await store.addThread('x.ts', 1, 'Existing thread');
         assert.strictEqual(store.getThreads().length, 1);
 
+        // Listen for the store change event that fires when the watcher detects deletion
+        const changed = new Promise<void>(resolve => {
+            store.onDidChangeThreads(() => resolve());
+        });
+
         // Delete the file externally
         fs.unlinkSync(storeFilePath);
 
-        // File watcher should detect deletion and reset data
-        // Wait a bit for the watcher to fire
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Wait for the file watcher → persistence.onExternalChange → store.loadData chain
+        // Use a race with a timeout to avoid hanging if the watcher doesn't fire in CI
+        const timeout = new Promise<void>(resolve => setTimeout(resolve, 2000));
+        await Promise.race([changed, timeout]);
 
-        // Store should have been reset by the file watcher's onDidDelete handler
-        // (fires synchronously, resets data to empty)
-        // However, file watcher timing is non-deterministic in tests,
-        // so just verify the store doesn't throw
+        // Store should have been reset by the watcher's onDidDelete → loadData(empty)
+        // or still have 1 thread if the watcher didn't fire (CI timing)
         assert.ok(Array.isArray(store.getThreads()));
     });
 
