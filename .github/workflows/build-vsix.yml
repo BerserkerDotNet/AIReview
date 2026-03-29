@@ -6,17 +6,6 @@ on:
       - master
     tags:
       - "v*"
-    paths:
-      - "src/**"
-      - "package.json"
-      - "package-lock.json"
-      - "tsconfig.json"
-      - "esbuild.js"
-      - "eslint.config.mjs"
-      - "resources/**"
-      - ".github/workflows/build-vsix.yml"
-      - ".github/plugins/**"
-      - ".github/plugin/**"
   pull_request:
     paths:
       - "src/**"
