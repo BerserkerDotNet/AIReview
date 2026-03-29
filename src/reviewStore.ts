@@ -1,5 +1,6 @@
 import * as path from 'path';
 import { ReviewData, ReviewThread, ReviewComment } from './models';
+import { generateThreadId, generateCommentId } from './idGenerator';
 
 const CURRENT_VERSION = 1;
 
@@ -84,14 +85,14 @@ export class ReviewStore {
 
     async addThread(filePath: string, lineNumber: number, body: string): Promise<ReviewThread> {
         const thread: ReviewThread = {
-            id: generateId(),
+            id: generateThreadId(),
             filePath,
             lineNumber,
             status: 'open',
             createdAt: new Date().toISOString(),
             comments: [
                 {
-                    id: generateId(),
+                    id: generateCommentId(),
                     author: 'user',
                     body,
                     timestamp: new Date().toISOString(),
@@ -110,7 +111,7 @@ export class ReviewStore {
             return undefined;
         }
         const comment: ReviewComment = {
-            id: generateId(),
+            id: generateCommentId(),
             author,
             body,
             timestamp: new Date().toISOString(),
@@ -260,8 +261,4 @@ export class ReviewStore {
     dispose(): void {
         this._onDidChangeThreads.dispose();
     }
-}
-
-function generateId(): string {
-    return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
 }

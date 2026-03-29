@@ -1,4 +1,5 @@
 import { ReviewThread, ReviewComment, ReviewData } from '../../models';
+import { generateThreadId } from '../../idGenerator';
 
 export function createComment(overrides: Partial<ReviewComment> = {}): ReviewComment {
     return {
@@ -12,7 +13,7 @@ export function createComment(overrides: Partial<ReviewComment> = {}): ReviewCom
 
 export function createThread(overrides: Partial<ReviewThread> = {}): ReviewThread {
     return {
-        id: 'thread-' + Math.random().toString(36).slice(2, 8),
+        id: generateThreadId(),
         filePath: 'src/test.ts',
         lineNumber: 1,
         status: 'open',
