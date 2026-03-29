@@ -49,8 +49,9 @@ Comment bodies can use `REVIEW:` and `LLM:` prefixes to stay compatible with the
 
 ## Copilot skill plugin + marketplace
 
-- Skill: `.github/plugins/feedback-resolver/skills/feedback-resolver/SKILL.md`
+- Skill: `.github/plugins/feedback-resolver/skills/resolve-comments/SKILL.md`
+- Sidecar script: `.github/plugins/feedback-resolver/skills/resolve-comments/sidecar.ps1`
 - Plugin manifest: `.github/plugins/feedback-resolver/plugin.json`
 - Marketplace catalog: `.github/plugin/marketplace.json`
 
-The `feedback-resolver` skill resolves open threads from `.vscode/.ai-review.json`, appends `llm` comments, and marks processed threads as `resolved`.
+The `resolve-comments` skill resolves open threads from `.vscode/.ai-review.json`, appends `llm` comments, and marks processed threads as `resolved`. It uses `sidecar.ps1` — a cross-platform PowerShell script (PowerShell Core 7+) — for all sidecar read/write operations.

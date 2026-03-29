@@ -130,7 +130,8 @@ The canonical sidecar is `.vscode/.ai-review.json`. At a high level the shape is
 
 ## 6) Copilot skill / plugin / marketplace notes
 
-- Skill (feedback-resolver): `.github/plugins/feedback-resolver/skills/feedback-resolver/...`
+- Skill (resolve-comments): `.github/plugins/feedback-resolver/skills/resolve-comments/SKILL.md`
+- Sidecar script: `.github/plugins/feedback-resolver/skills/resolve-comments/sidecar.ps1`
 - Plugin manifest: `.github/plugins/feedback-resolver/plugin.json`
 - Marketplace catalog: `.github/plugin/marketplace.json` (must include `name`, `owner`, and plugins[].name in kebab-case and valid `source` paths)
 
