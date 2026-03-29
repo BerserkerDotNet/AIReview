@@ -1,6 +1,6 @@
 # AI Changes Review
 
-[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/BerserkerDotNet.ai-review)](https://marketplace.visualstudio.com/items?itemName=BerserkerDotNet.ai-review)
+[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/BerserkerDotNet.ai-changes-review)](https://marketplace.visualstudio.com/items?itemName=BerserkerDotNet.ai-changes-review)
 [![Build Status](https://github.com/BerserkerDotNet/AIReview/actions/workflows/build-vsix.yml/badge.svg)](https://github.com/BerserkerDotNet/AIReview/actions/workflows/build-vsix.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 

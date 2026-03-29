@@ -1,5 +1,5 @@
 {
-  "name": "ai-review",
+  "name": "ai-changes-review",
   "publisher": "BerserkerDotNet",
   "displayName": "AI Changes Review",
   "description": "Place and manage REVIEW comments for AI-generated code changes.",
