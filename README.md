@@ -1,5 +1,9 @@
 # AI Changes Review
 
+[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/BerserkerDotNet.ai-review)](https://marketplace.visualstudio.com/items?itemName=BerserkerDotNet.ai-review)
+[![Build Status](https://github.com/BerserkerDotNet/AIReview/actions/workflows/build-vsix.yml/badge.svg)](https://github.com/BerserkerDotNet/AIReview/actions/workflows/build-vsix.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A VS Code extension for placing and managing `REVIEW:` comments in code for AI-assisted code review.
 
 ## Features
@@ -43,15 +47,34 @@ Open the native **Comments** panel (View → Comments, or the speech-bubble icon
 
 Review threads are stored in `.vscode/.ai-review.json`. This path is included in `.gitignore` by default.
 
-## Compatibility with review-resolver skill
+## 🤖 Companion Copilot Skill
 
-Comment bodies can use `REVIEW:` and `LLM:` prefixes to stay compatible with the review-resolver Copilot skill, which uses `grep -rn "REVIEW:"` to discover comments.
+This extension ships with a companion **Copilot CLI skill** called `resolve-comments` that can automatically resolve your review threads using AI.
 
-## Copilot skill plugin + marketplace
+### What it does
 
-- Skill: `.github/plugins/feedback-resolver/skills/resolve-comments/SKILL.md`
-- Sidecar script: `.github/plugins/feedback-resolver/skills/resolve-comments/sidecar.ps1`
-- Plugin manifest: `.github/plugins/feedback-resolver/plugin.json`
-- Marketplace catalog: `.github/plugin/marketplace.json`
+The `resolve-comments` skill reads your open review threads from `.vscode/.ai-review.json`, analyzes the code context, implements fixes, and marks threads as resolved — all through Copilot.
 
-The `resolve-comments` skill resolves open threads from `.vscode/.ai-review.json`, appends `llm` comments, and marks processed threads as `resolved`. It uses `sidecar.ps1` — a cross-platform PowerShell script (PowerShell Core 7+) — for all sidecar read/write operations.
+### Install the skill
+
+You can install the companion skill directly from the Copilot CLI:
+
+1. **Add the marketplace catalog:**
+   ```
+   /plugin marketplace add BerserkerDotNet/AIReview
+   ```
+2. **Install the plugin:**
+   ```
+   /plugin install feedback-resolver@ai-changes-review-marketplace
+   ```
+
+Or use the command palette: **AI Changes Review: Setup Copilot Plugin** for guided installation.
+
+### How to use
+
+Once installed, ask Copilot to resolve your review threads:
+- "Resolve my open review comments"
+- "Process unresolved AI review threads"
+- Use the `resolve-comments` skill directly
+
+The skill will systematically work through each open thread, make code changes, add reply comments documenting what was changed, and mark threads as resolved.

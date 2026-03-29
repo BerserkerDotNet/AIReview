@@ -1,5 +1,33 @@
 # Changelog
 
+All notable changes to the **AI Changes Review** extension will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
+
+## [1.0.0] — First Public Release
+
+### Added
+- **Comment editing** — edit the body of any existing comment in a thread
+- **ReviewStorePersistence** — watches `.vscode/.ai-review.json` for external changes and reloads automatically, enabling multi-tool workflows
+- **Companion Copilot `resolve-comments` skill** with `sidecar.ps1` script for automated thread resolution
+- **Setup Copilot Plugin** command and walkthrough to guide first-time configuration of the Copilot skill
+- Integration and unit test suite (`@vscode/test-electron` + Mocha)
+- CI/CD workflow (`.github/workflows/build-vsix.yml`) with automated VSIX packaging, artifact upload, and GitHub Releases on tagged pushes
+- Copilot instructions (`.github/copilot-instructions.md`) for AI-assisted development
+
+### Changed
+- Renamed extension from "AI Review" to **AI Changes Review** and updated all related identifiers
+- Improved line-number anchor tracking — edits that span multiple lines now shift thread anchors more accurately
+- Updated paths and configuration to use `.vscode/.ai-review.json` consistently across feedback-resolver plugin and marketplace metadata
+- Marketplace and plugin configurations refactored for the `feedback-resolver` skill
+- Test cases updated to use `path.join` for cross-platform compatibility and improved cleanup in integration tests
+
+### Fixed
+- CI workflow branch reference corrected from `main` to `master`
+- Miscellaneous path fixes in build and plugin configuration
+
+---
+
 ## [0.0.1]
 
 ### Added

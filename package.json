@@ -1,25 +1,43 @@
 {
   "name": "ai-review",
-  "publisher": "ai-review-local",
+  "publisher": "BerserkerDotNet",
   "displayName": "AI Changes Review",
   "description": "Place and manage REVIEW comments for AI-generated code changes.",
-  "version": "0.0.3",
+  "version": "1.0.0",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "file:///I:/Programs/AIReview"
+    "url": "https://github.com/BerserkerDotNet/AIReview.git"
   },
+  "bugs": {
+    "url": "https://github.com/BerserkerDotNet/AIReview/issues"
+  },
+  "homepage": "https://github.com/BerserkerDotNet/AIReview#readme",
   "engines": {
     "vscode": "^1.109.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Testing",
+    "Machine Learning"
   ],
+  "keywords": ["ai", "copilot", "code-review", "ai-review", "review-comments", "comments", "feedback"],
   "activationEvents": [
     "onStartupFinished"
   ],
   "main": "./dist/extension.js",
   "icon": "resources/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "badges": [
+    {
+      "url": "https://github.com/BerserkerDotNet/AIReview/actions/workflows/build-vsix.yml/badge.svg",
+      "href": "https://github.com/BerserkerDotNet/AIReview/actions/workflows/build-vsix.yml",
+      "description": "Build Status"
+    }
+  ],
   "contributes": {
     "configuration": {
       "title": "AI Changes Review",
@@ -86,6 +104,10 @@
       {
         "command": "ai-review.startEdit",
         "title": "AI Changes Review: Edit Comment"
+      },
+      {
+        "command": "ai-review.setupCopilotPlugin",
+        "title": "AI Changes Review: Setup Copilot Plugin"
       }
     ],
     "menus": {
@@ -132,6 +154,50 @@
         "key": "ctrl+shift+r",
         "mac": "cmd+shift+r",
         "when": "editorTextFocus"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "ai-review.getStarted",
+        "title": "Get Started with AI Changes Review",
+        "description": "Learn how to place review comments and resolve them with Copilot.",
+        "steps": [
+          {
+            "id": "addComment",
+            "title": "Add a review comment",
+            "description": "Place a review comment on any line using the hover widget, right-click menu, or the keyboard shortcut ``Ctrl+Shift+R`` (``Cmd+Shift+R`` on Mac).\n\n[Add Review Comment](command:ai-review.addComment)",
+            "media": {
+              "markdown": "resources/walkthrough/add-comment.md"
+            }
+          },
+          {
+            "id": "viewComments",
+            "title": "View all threads",
+            "description": "Open the **Comments** panel (View → Comments) to see all review threads grouped by file. Use the built-in filter to toggle between open and resolved threads.",
+            "media": {
+              "markdown": "resources/walkthrough/view-comments.md"
+            }
+          },
+          {
+            "id": "setupCopilotPlugin",
+            "title": "Set up the Copilot resolve-comments skill",
+            "description": "Install the companion Copilot plugin to auto-resolve review threads with AI.\n\n[Setup Copilot Plugin](command:ai-review.setupCopilotPlugin)",
+            "media": {
+              "markdown": "resources/walkthrough/setup-copilot.md"
+            },
+            "completionEvents": [
+              "onCommand:ai-review.setupCopilotPlugin"
+            ]
+          },
+          {
+            "id": "resolveThreads",
+            "title": "Resolve threads with Copilot",
+            "description": "Once the plugin is installed, ask Copilot to resolve your review threads. Try saying:\n- *\"Resolve my open review comments\"*\n- *\"Process unresolved AI review threads\"*",
+            "media": {
+              "markdown": "resources/walkthrough/resolve-threads.md"
+            }
+          }
+        ]
       }
     ]
   },
