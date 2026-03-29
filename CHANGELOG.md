@@ -4,6 +4,16 @@ All notable changes to the **AI Changes Review** extension will be documented in
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] — Dependency Updates
+
+### Changed
+- Updated npm dev dependencies: `@types/node` 25.5, `esbuild` 0.27.4, `eslint` 10.1, `typescript-eslint` 8.57
+- Updated `minimatch` override to ^10.2.2
+- CI workflow: upgraded GitHub Actions (`checkout`, `setup-node`, `upload-artifact`, `download-artifact`) from v4 to v6
+- CI workflow: upgraded Node.js from 20 to 22 LTS
+
+---
+
 ## [1.0.0] — First Public Release
 
 ### Added
