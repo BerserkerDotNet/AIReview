@@ -59,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
 	}
 
 	// Phase 3 + 4 commands (add, reply, resolve, unresolve, delete)
-	registerCommands(context, store, () => commentController.syncFromStore());
+	registerCommands(context, store);
 
 	// Phase 6c: Track document changes to keep line numbers in sync
 	const changeTracker = new DocumentChangeTracker(store);

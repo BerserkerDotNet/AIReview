@@ -73,7 +73,7 @@
       },
       {
         "command": "ai-review.unresolveThread",
-        "title": "AI Changes Review: Unresolve Thread"
+        "title": "AI Changes Review: Reopen Thread"
       },
       {
         "command": "ai-review.deleteThread",
@@ -91,19 +91,41 @@
       },
       {
         "command": "ai-review.resolveCommentThread",
-        "title": "Resolve Thread"
+        "title": "Resolve",
+        "icon": "$(check)"
       },
       {
         "command": "ai-review.unresolveCommentThread",
-        "title": "Unresolve Thread"
+        "title": "Reopen",
+        "icon": "$(issue-reopened)"
       },
       {
         "command": "ai-review.deleteCommentThread",
-        "title": "Delete Thread"
+        "title": "Delete",
+        "icon": "$(trash)"
       },
       {
-        "command": "ai-review.startEdit",
-        "title": "AI Changes Review: Edit Comment"
+        "command": "ai-review.editCommentInline",
+        "title": "Edit",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "ai-review.saveCommentEdit",
+        "title": "Save",
+        "icon": "$(check)"
+      },
+      {
+        "command": "ai-review.cancelCommentEdit",
+        "title": "Cancel",
+        "icon": "$(close)"
+      },
+      {
+        "command": "ai-review.reopenThread",
+        "title": "AI Changes Review: Reopen Thread"
+      },
+      {
+        "command": "ai-review.clearResolvedThreads",
+        "title": "AI Changes Review: Clear Resolved Threads"
       },
       {
         "command": "ai-review.setupCopilotPlugin",
@@ -122,17 +144,36 @@
         {
           "command": "ai-review.resolveCommentThread",
           "group": "inline@1",
-          "when": "commentController == ai-review && commentThreadIsEmpty == false && commentThread/state == 'unresolved'"
+          "when": "commentController == ai-review && commentThreadIsEmpty == false && commentThread == open"
         },
         {
           "command": "ai-review.unresolveCommentThread",
           "group": "inline@1",
-          "when": "commentController == ai-review && commentThread/state == 'resolved'"
+          "when": "commentController == ai-review && commentThread == resolved"
         },
         {
           "command": "ai-review.deleteCommentThread",
           "group": "inline@2",
           "when": "commentController == ai-review"
+        }
+      ],
+      "comments/comment/title": [
+        {
+          "command": "ai-review.editCommentInline",
+          "group": "inline",
+          "when": "commentController == ai-review && comment == editable"
+        }
+      ],
+      "comments/comment/context": [
+        {
+          "command": "ai-review.cancelCommentEdit",
+          "group": "inline@1",
+          "when": "commentController == ai-review && comment == editable"
+        },
+        {
+          "command": "ai-review.saveCommentEdit",
+          "group": "inline@2",
+          "when": "commentController == ai-review && comment == editable"
         }
       ],
       "comments/commentThread/context": [

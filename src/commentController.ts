@@ -2,7 +2,25 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { ReviewStore } from './reviewStore';
 import { ReviewThread } from './models';
-import { buildCommandUri } from './utils';
+
+/** Custom Comment class that tracks store IDs and supports cancel-on-edit. */
+export class ReviewNoteComment implements vscode.Comment {
+    savedBody: string;
+
+    constructor(
+        public body: string | vscode.MarkdownString,
+        public mode: vscode.CommentMode,
+        public author: vscode.CommentAuthorInformation,
+        public threadId: string,
+        public commentId: string,
+        plainBody: string,
+        public timestamp?: Date,
+        public contextValue?: string,
+        public label?: string,
+    ) {
+        this.savedBody = plainBody;
+    }
+}
 
 export class ReviewCommentController implements vscode.Disposable {
     private controller: vscode.CommentController;
@@ -67,11 +85,27 @@ export class ReviewCommentController implements vscode.Disposable {
             )
         );
 
-        // Handle start edit — opens a pre-filled InputBox immediately (reliable cross-version approach)
+        // Native inline edit — switches comment to editing mode
         this.disposables.push(
             vscode.commands.registerCommand(
-                'ai-review.startEdit',
-                (...args: unknown[]) => this.handleStartEdit(args)
+                'ai-review.editCommentInline',
+                (comment: ReviewNoteComment) => this.handleEditInline(comment)
+            )
+        );
+
+        // Save edit — persists updated body from inline editor
+        this.disposables.push(
+            vscode.commands.registerCommand(
+                'ai-review.saveCommentEdit',
+                (comment: ReviewNoteComment) => this.handleSaveEdit(comment)
+            )
+        );
+
+        // Cancel edit — restores original body
+        this.disposables.push(
+            vscode.commands.registerCommand(
+                'ai-review.cancelCommentEdit',
+                (comment: ReviewNoteComment) => this.handleCancelEdit(comment)
             )
         );
 
@@ -125,40 +159,54 @@ export class ReviewCommentController implements vscode.Disposable {
         const comments = this.toVscodeComments(reviewThread);
 
         const thread = this.controller.createCommentThread(uri, range, comments);
-        thread.contextValue = reviewThread.id;
         this.applyThreadState(thread, reviewThread);
         return thread;
     }
 
     private updateVscodeThread(thread: vscode.CommentThread, reviewThread: ReviewThread): void {
-        thread.comments = this.toVscodeComments(reviewThread);
+        // Apply state (label, contextValue, etc.) BEFORE reassigning comments.
+        // The comments setter triggers VS Code's re-render, which picks up
+        // all property changes made beforehand.
         this.applyThreadState(thread, reviewThread);
+        thread.comments = this.toVscodeComments(reviewThread);
     }
 
     private applyThreadState(thread: vscode.CommentThread, reviewThread: ReviewThread): void {
-        thread.label = reviewThread.status === 'resolved' ? '✅ Resolved' : undefined;
+        thread.label = reviewThread.status === 'resolved' ? '✅ Resolved' : '💬 Open';
         thread.state = reviewThread.status === 'resolved'
             ? vscode.CommentThreadState.Resolved
             : vscode.CommentThreadState.Unresolved;
         thread.canReply = reviewThread.status === 'open';
+        thread.contextValue = reviewThread.status; // 'open' or 'resolved'
     }
 
-    private toVscodeComments(reviewThread: ReviewThread): vscode.Comment[] {
+    /** Extract the store thread ID by reverse-looking up the VS Code thread in the map. */
+    private getThreadId(thread: vscode.CommentThread): string | undefined {
+        for (const [id, t] of this.threadMap) {
+            if (t === thread) { return id; }
+        }
+        return undefined;
+    }
+
+    private toVscodeComments(reviewThread: ReviewThread): ReviewNoteComment[] {
         return reviewThread.comments.map(c => {
             const md = new vscode.MarkdownString();
             md.appendMarkdown(c.body);
-            if (c.author === 'user') {
-                const editUri = buildCommandUri('ai-review.startEdit', [reviewThread.id, c.id]);
-                md.appendMarkdown(`\n\n[Edit](${editUri})`);
-                md.isTrusted = true;
+            if (c.editedAt) {
+                md.appendMarkdown(' *(edited)*');
             }
-            return {
-                body: md,
-                mode: vscode.CommentMode.Preview,
-                author: { name: c.author === 'user' ? 'You' : 'AI' },
-                timestamp: new Date(c.timestamp),
-                contextValue: c.author === 'user' ? `comment:${reviewThread.id}:${c.id}` : undefined,
-            } as vscode.Comment;
+            md.isTrusted = true;
+
+            return new ReviewNoteComment(
+                md,
+                vscode.CommentMode.Preview,
+                { name: c.author === 'user' ? 'You' : 'AI' },
+                reviewThread.id,
+                c.id,
+                c.body,
+                new Date(c.timestamp),
+                c.author === 'user' ? 'editable' : undefined,
+            );
         });
     }
 
@@ -177,58 +225,54 @@ export class ReviewCommentController implements vscode.Disposable {
     }
 
     private async handleReply(reply: vscode.CommentReply): Promise<void> {
-        const threadId = reply.thread.contextValue;
+        const threadId = this.getThreadId(reply.thread);
         if (!threadId) { return; }
         await this.store.addComment(threadId, 'user', reply.text);
     }
 
     private async handleResolve(thread: vscode.CommentThread): Promise<void> {
-        const threadId = thread.contextValue;
+        const threadId = this.getThreadId(thread);
         if (!threadId) { return; }
         await this.store.setThreadStatus(threadId, 'resolved');
     }
 
     private async handleUnresolve(thread: vscode.CommentThread): Promise<void> {
-        const threadId = thread.contextValue;
+        const threadId = this.getThreadId(thread);
         if (!threadId) { return; }
         await this.store.setThreadStatus(threadId, 'open');
     }
 
     private async handleDelete(thread: vscode.CommentThread): Promise<void> {
-        const threadId = thread.contextValue;
+        const threadId = this.getThreadId(thread);
         if (!threadId) { return; }
         await this.store.deleteThread(threadId);
     }
 
-    private async handleStartEdit(args: unknown[]): Promise<void> {
-        let threadId: string | undefined;
-        let commentId: string | undefined;
+    private handleEditInline(comment: ReviewNoteComment): void {
+        if (!comment.threadId || !comment.commentId) { return; }
+        comment.body = comment.savedBody;
+        comment.mode = vscode.CommentMode.Editing;
 
-        if (args.length >= 2 && typeof args[0] === 'string' && typeof args[1] === 'string') {
-            threadId = args[0];
-            commentId = args[1];
-        } else if (args.length >= 1 && Array.isArray(args[0]) && args[0].length >= 2) {
-            threadId = String(args[0][0]);
-            commentId = String(args[0][1]);
+        const thread = this.threadMap.get(comment.threadId);
+        if (thread) {
+            thread.comments = [...thread.comments];
         }
+    }
 
-        if (!threadId || !commentId) { return; }
+    private async handleSaveEdit(comment: ReviewNoteComment): Promise<void> {
+        if (!comment.threadId || !comment.commentId) { return; }
+        const newBody = typeof comment.body === 'string'
+            ? comment.body
+            : comment.body.value;
 
-        const reviewThread = this.store.getThread(threadId);
-        if (!reviewThread) { return; }
+        if (!newBody.trim()) { return; }
 
-        const comment = reviewThread.comments.find(c => c.id === commentId);
-        if (!comment) { return; }
+        await this.store.editComment(comment.threadId, comment.commentId, newBody.trim());
+        // store fires onDidChangeThreads → syncFromStore rebuilds in Preview mode
+    }
 
-        const newBody = await vscode.window.showInputBox({
-            prompt: 'Edit comment',
-            value: comment.body,
-            validateInput: (val) => val.trim() ? undefined : 'Comment cannot be empty',
-        });
-        if (newBody === undefined) { return; }
-
-        await this.store.editComment(threadId, commentId, newBody.trim());
-        // store fires onDidChangeThreads → syncFromStore
+    private handleCancelEdit(_comment: ReviewNoteComment): void {
+        this.syncFromStore();
     }
 
     dispose(): void {

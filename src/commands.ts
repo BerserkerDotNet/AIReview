@@ -4,11 +4,13 @@ import { ReviewStore } from './reviewStore';
 /**
  * Registers all commands for creating/managing review comments.
  * Covers Phase 3 (add comment, reply) and Phase 4 (resolve/unresolve/delete via commands).
+ *
+ * Note: Store mutations fire onDidChangeThreads, which the CommentController
+ * listens to for syncing. No explicit sync callback is needed here.
  */
 export function registerCommands(
     context: vscode.ExtensionContext,
     store: ReviewStore,
-    onThreadsChanged: () => void,
 ): void {
     // 3b/3c/3d: Add new review comment (from hover, context menu, or command palette)
     context.subscriptions.push(
@@ -42,7 +44,6 @@ export function registerCommands(
 
                     const relativePath = vscode.workspace.asRelativePath(targetUri, false);
                     await store.addThread(relativePath, targetLine ?? 1, body.trim());
-                    onThreadsChanged();
                 } catch (err) {
                     console.error('AI Review: addComment failed', err);
                     vscode.window.showErrorMessage(`AI Review: ${err instanceof Error ? err.message : 'An error occurred'}`);
@@ -68,7 +69,6 @@ export function registerCommands(
                     if (!body) { return; }
 
                     await store.addComment(id, 'user', body.trim());
-                    onThreadsChanged();
                 } catch (err) {
                     console.error('AI Review: replyToThread failed', err);
                     vscode.window.showErrorMessage(`AI Review: ${err instanceof Error ? err.message : 'An error occurred'}`);
@@ -86,7 +86,6 @@ export function registerCommands(
                     const id = threadId ?? await pickThread(store, 'open');
                     if (!id) { return; }
                     await store.setThreadStatus(id, 'resolved');
-                    onThreadsChanged();
                 } catch (err) {
                     console.error('AI Review: resolveThread failed', err);
                     vscode.window.showErrorMessage(`AI Review: ${err instanceof Error ? err.message : 'An error occurred'}`);
@@ -104,7 +103,6 @@ export function registerCommands(
                     const id = threadId ?? await pickThread(store, 'resolved');
                     if (!id) { return; }
                     await store.setThreadStatus(id, 'open');
-                    onThreadsChanged();
                 } catch (err) {
                     console.error('AI Review: unresolveThread failed', err);
                     vscode.window.showErrorMessage(`AI Review: ${err instanceof Error ? err.message : 'An error occurred'}`);
@@ -128,7 +126,6 @@ export function registerCommands(
                     );
                     if (confirm !== 'Delete') { return; }
                     await store.deleteThread(id);
-                    onThreadsChanged();
                 } catch (err) {
                     console.error('AI Review: deleteThread failed', err);
                     vscode.window.showErrorMessage(`AI Review: ${err instanceof Error ? err.message : 'An error occurred'}`);
@@ -147,16 +144,25 @@ export function registerCommands(
                     if (!id) { return; }
                     const thread = store.getThread(id);
                     if (!thread) { return; }
-                    const items = thread.comments.map(c => ({
-                        label: c.author === 'user' ? 'You' : 'AI',
-                        description: new Date(c.timestamp).toLocaleString(),
-                        detail: c.body,
-                        id: c.id,
-                    }));
-                    const picked = await vscode.window.showQuickPick(items, {
-                        placeHolder: 'Select a comment to edit',
-                    });
-                    const cid = commentId ?? picked?.id;
+
+                    let cid = commentId;
+                    if (!cid) {
+                        const userComments = thread.comments.filter(c => c.author === 'user');
+                        if (userComments.length === 0) {
+                            vscode.window.showInformationMessage('No editable comments in this thread.');
+                            return;
+                        }
+                        const items = userComments.map(c => ({
+                            label: 'You',
+                            description: new Date(c.timestamp).toLocaleString(),
+                            detail: c.body,
+                            id: c.id,
+                        }));
+                        const picked = await vscode.window.showQuickPick(items, {
+                            placeHolder: 'Select a comment to edit',
+                        });
+                        cid = picked?.id;
+                    }
                     if (!cid) { return; }
                     const comment = thread.comments.find(c => c.id === cid);
                     if (!comment) { return; }
@@ -167,9 +173,52 @@ export function registerCommands(
                     });
                     if (newBody === undefined) { return; }
                     await store.editComment(id, cid, newBody.trim(), 'user');
-                    onThreadsChanged();
                 } catch (err) {
                     console.error('AI Review: editComment failed', err);
+                    vscode.window.showErrorMessage(`AI Review: ${err instanceof Error ? err.message : 'An error occurred'}`);
+                }
+            }
+        )
+    );
+
+    // Reopen thread (alias for unresolve, more discoverable name)
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            'ai-review.reopenThread',
+            async (threadId?: string) => {
+                try {
+                    const id = threadId ?? await pickThread(store, 'resolved');
+                    if (!id) { return; }
+                    await store.setThreadStatus(id, 'open');
+                } catch (err) {
+                    console.error('AI Review: reopenThread failed', err);
+                    vscode.window.showErrorMessage(`AI Review: ${err instanceof Error ? err.message : 'An error occurred'}`);
+                }
+            }
+        )
+    );
+
+    // Clear all resolved threads
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            'ai-review.clearResolvedThreads',
+            async () => {
+                try {
+                    const resolvedCount = store.getThreads().filter(t => t.status === 'resolved').length;
+                    if (resolvedCount === 0) {
+                        vscode.window.showInformationMessage('No resolved threads to clear.');
+                        return;
+                    }
+                    const confirm = await vscode.window.showWarningMessage(
+                        `Delete ${resolvedCount} resolved thread${resolvedCount === 1 ? '' : 's'}? This cannot be undone.`,
+                        { modal: true },
+                        'Delete'
+                    );
+                    if (confirm !== 'Delete') { return; }
+                    const removed = await store.clearResolvedThreads();
+                    vscode.window.showInformationMessage(`Cleared ${removed} resolved thread${removed === 1 ? '' : 's'}.`);
+                } catch (err) {
+                    console.error('AI Review: clearResolvedThreads failed', err);
                     vscode.window.showErrorMessage(`AI Review: ${err instanceof Error ? err.message : 'An error occurred'}`);
                 }
             }

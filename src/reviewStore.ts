@@ -161,6 +161,21 @@ export class ReviewStore {
     }
 
     /**
+     * Remove all resolved threads from the store.
+     * Returns the number of threads removed.
+     */
+    async clearResolvedThreads(): Promise<number> {
+        const before = this.data.threads.length;
+        this.data.threads = this.data.threads.filter(t => t.status !== 'resolved');
+        const removedCount = before - this.data.threads.length;
+        if (removedCount > 0) {
+            await this.save();
+            this._onDidChangeThreads.fire();
+        }
+        return removedCount;
+    }
+
+    /**
      * Adjust thread line numbers for a file when lines are inserted or deleted.
      * Called by DocumentChangeTracker on every document change.
      *

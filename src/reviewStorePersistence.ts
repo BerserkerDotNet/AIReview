@@ -48,7 +48,9 @@ export class ReviewStorePersistence implements IReviewStorePersistence {
         try {
             await this.writeDataToPath(this.filePath, data);
         } finally {
-            this.saving = false;
+            // Keep flag true briefly so the file watcher ignores our own write.
+            // The watcher event fires asynchronously after the write completes.
+            setTimeout(() => { this.saving = false; }, 500);
         }
     }
 
@@ -90,6 +92,7 @@ export class ReviewStorePersistence implements IReviewStorePersistence {
         this.fileWatcher = vscode.workspace.createFileSystemWatcher(pattern);
         this.disposables.push(
             this.fileWatcher.onDidChange(async () => {
+                if (this.saving) { return; }
                 try {
                     const data = await this.load();
                     this._onExternalChange.fire(data);
@@ -98,6 +101,7 @@ export class ReviewStorePersistence implements IReviewStorePersistence {
                 }
             }),
             this.fileWatcher.onDidCreate(async () => {
+                if (this.saving) { return; }
                 try {
                     const data = await this.load();
                     this._onExternalChange.fire(data);
