@@ -1,3 +1,5 @@
+export const CURRENT_VERSION = 1;
+
 export interface ReviewComment {
     id: string;
     author: 'user' | 'llm';

@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 
+export { normalizePath } from './pathUtils';
+
 /**
  * Build a command URI that can be used in MarkdownString links.
  */

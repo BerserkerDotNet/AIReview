@@ -5,6 +5,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { ReviewStore } from '../../reviewStore';
 import { ReviewStorePersistence } from '../../reviewStorePersistence';
+import type { IReviewStorePersistence } from '../../reviewStorePersistence';
+import type { ReviewData } from '../../models';
 
 suite('Persistence Edge Cases', () => {
     let store: ReviewStore;
@@ -24,7 +26,10 @@ suite('Persistence Edge Cases', () => {
         store.loadData(data);
     });
 
-    teardown(() => {
+    teardown(async () => {
+        // Reset autoSave config in case a test changed it
+        await vscode.workspace.getConfiguration('aiReview')
+            .update('autoSave', undefined, vscode.ConfigurationTarget.Global);
         persistence.dispose();
         store.dispose();
         fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -240,6 +245,128 @@ suite('Persistence Edge Cases', () => {
         persistence2.dispose();
         store2.dispose();
 
+        persistence = new ReviewStorePersistence();
+        store = new ReviewStore();
+        store.setPersistence(persistence);
+        const data = await persistence.initialize(workspaceFolder);
+        store.loadData(data);
+    });
+
+    test('autoSave=false prevents disk writes', async () => {
+        const config = vscode.workspace.getConfiguration('aiReview');
+
+        // Add a thread with autoSave enabled (default) to establish baseline on disk
+        await store.addThread('x.ts', 1, 'Persisted thread');
+        assert.ok(fs.existsSync(storeFilePath), 'File should exist after first save');
+        const contentBefore = fs.readFileSync(storeFilePath, 'utf-8');
+
+        // Disable autoSave
+        await config.update('autoSave', false, vscode.ConfigurationTarget.Global);
+        try {
+            await store.addThread('y.ts', 2, 'Should not persist');
+
+            // In-memory store should have both threads
+            assert.strictEqual(store.getThreads().length, 2);
+
+            // File should still have only the first thread
+            const contentAfter = fs.readFileSync(storeFilePath, 'utf-8');
+            assert.strictEqual(contentAfter, contentBefore,
+                'File content should not change when autoSave is false');
+            const parsed = JSON.parse(contentAfter);
+            assert.strictEqual(parsed.threads.length, 1,
+                'Only the persisted thread should be on disk');
+        } finally {
+            await config.update('autoSave', undefined, vscode.ConfigurationTarget.Global);
+        }
+    });
+
+    test('rapid sequential saves do not corrupt', async () => {
+        for (let i = 0; i < 5; i++) {
+            await store.addThread(`file${i}.ts`, i + 1, `Rapid ${i}`);
+        }
+        assert.strictEqual(store.getThreads().length, 5);
+
+        const raw = fs.readFileSync(storeFilePath, 'utf-8');
+        const parsed = JSON.parse(raw); // Should not throw — valid JSON
+        assert.strictEqual(parsed.threads.length, 5);
+        for (let i = 0; i < 5; i++) {
+            assert.ok(
+                parsed.threads.find((t: any) => t.comments[0].body === `Rapid ${i}`),
+                `Rapid ${i} should be in persisted JSON`
+            );
+        }
+    });
+
+    test('store state survives persistence failure', async () => {
+        const emitter = new vscode.EventEmitter<ReviewData>();
+        const failingPersistence: IReviewStorePersistence = {
+            initialize: async () => ({ version: 1, threads: [] }),
+            save: async () => { throw new Error('Simulated write failure'); },
+            onExternalChange: emitter.event,
+            dispose: () => { emitter.dispose(); },
+        };
+
+        const failStore = new ReviewStore();
+        failStore.setPersistence(failingPersistence);
+        failStore.loadData({ version: 1, threads: [] });
+
+        // addThread mutates in-memory data BEFORE calling save,
+        // so the thread should be present even though save throws.
+        try {
+            await failStore.addThread('x.ts', 1, 'Survives failure');
+        } catch {
+            // Expected — save throws
+        }
+
+        const threads = failStore.getThreads();
+        assert.strictEqual(threads.length, 1, 'Thread should be in memory despite save failure');
+        assert.strictEqual(threads[0].comments[0].body, 'Survives failure');
+
+        failStore.dispose();
+        failingPersistence.dispose();
+    });
+
+    test('isOwnWrite suppresses reload during save', async () => {
+        let externalChangeCount = 0;
+        const disposable = persistence.onExternalChange(() => {
+            externalChangeCount++;
+        });
+
+        await store.addThread('x.ts', 1, 'Trigger save');
+
+        // Give the file watcher time to fire (if it would)
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        assert.strictEqual(externalChangeCount, 0,
+            'onExternalChange should not fire for own writes');
+        disposable.dispose();
+    });
+
+    test('large thread count persists correctly', async () => {
+        for (let i = 0; i < 100; i++) {
+            await store.addThread(`file${i}.ts`, i + 1, `Thread ${i}`);
+        }
+        assert.strictEqual(store.getThreads().length, 100);
+
+        persistence.dispose();
+        store.dispose();
+
+        const persistence2 = new ReviewStorePersistence();
+        const store2 = new ReviewStore();
+        store2.setPersistence(persistence2);
+        const data2 = await persistence2.initialize(workspaceFolder);
+        store2.loadData(data2);
+
+        assert.strictEqual(store2.getThreads().length, 100);
+        for (let i = 0; i < 100; i++) {
+            const found = store2.getThreads().find(t => t.comments[0].body === `Thread ${i}`);
+            assert.ok(found, `Thread ${i} should exist after reload`);
+        }
+
+        persistence2.dispose();
+        store2.dispose();
+
+        // Re-create for teardown
         persistence = new ReviewStorePersistence();
         store = new ReviewStore();
         store.setPersistence(persistence);

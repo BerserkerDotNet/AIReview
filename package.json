@@ -21,7 +21,15 @@
     "Testing",
     "Machine Learning"
   ],
-  "keywords": ["ai", "copilot", "code-review", "ai-review", "review-comments", "comments", "feedback"],
+  "keywords": [
+    "ai",
+    "copilot",
+    "code-review",
+    "ai-review",
+    "review-comments",
+    "comments",
+    "feedback"
+  ],
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -130,6 +138,18 @@
       {
         "command": "ai-review.setupCopilotPlugin",
         "title": "AI Changes Review: Setup Copilot Plugin"
+      },
+      {
+        "command": "ai-review.resolveThreadAtLine",
+        "title": "AI Changes Review: Resolve Thread at Line"
+      },
+      {
+        "command": "ai-review.nextThread",
+        "title": "AI Changes Review: Next Thread"
+      },
+      {
+        "command": "ai-review.previousThread",
+        "title": "AI Changes Review: Previous Thread"
       }
     ],
     "menus": {
@@ -195,6 +215,22 @@
         "key": "ctrl+shift+r",
         "mac": "cmd+shift+r",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "ai-review.resolveThreadAtLine",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "ai-review.nextThread",
+        "key": "alt+f2",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "ai-review.previousThread",
+        "key": "alt+shift+f2",
+        "when": "editorTextFocus"
       }
     ],
     "walkthroughs": [
@@ -255,13 +291,12 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vscode-test",
-    "test:unit": "npm run compile-tests && mocha --ui tdd out/test/unit/**/*.test.js",
+    "test:unit": "npm run compile-tests && mocha --ui tdd --require out/test/unit/setup.js out/test/unit/**/*.test.js",
     "test:all": "npm run test:unit && npm test"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^25.5.0",
-    "@types/sinon": "^21.0.0",
     "@types/vscode": "^1.109.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
@@ -269,7 +304,6 @@
     "esbuild": "^0.27.4",
     "eslint": "^10.1.0",
     "npm-run-all2": "^8.0.4",
-    "sinon": "^21.0.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.57.2"
   },

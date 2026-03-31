@@ -142,7 +142,7 @@ suite('ReviewStore Test Suite', () => {
 		const thread = await store.addThread('src\\old.ts', 3, 'Rename me');
 		const changed = await store.remapThreadsForRename('src\\old.ts', 'src\\new.ts');
 		assert.strictEqual(changed, 1);
-		assert.strictEqual(store.getThread(thread.id)!.filePath, 'src\\new.ts');
+		assert.strictEqual(store.getThread(thread.id)!.filePath, 'src/new.ts');
 	});
 
 	test('remapThreadsForRename updates nested paths for folder rename', async () => {
@@ -150,8 +150,8 @@ suite('ReviewStore Test Suite', () => {
 		const threadB = await store.addThread('src\\old\\nested\\b.ts', 2, 'B');
 		const changed = await store.remapThreadsForRename('src\\old', 'src\\new');
 		assert.strictEqual(changed, 2);
-		assert.strictEqual(store.getThread(threadA.id)!.filePath, 'src\\new\\a.ts');
-		assert.strictEqual(store.getThread(threadB.id)!.filePath, 'src\\new\\nested\\b.ts');
+		assert.strictEqual(store.getThread(threadA.id)!.filePath, 'src/new/a.ts');
+		assert.strictEqual(store.getThread(threadB.id)!.filePath, 'src/new/nested/b.ts');
 	});
 
 	test('removeThreadsForDeletedPath removes threads for deleted file and folder', async () => {
@@ -164,6 +164,42 @@ suite('ReviewStore Test Suite', () => {
 		assert.strictEqual(removedFolder, 1);
 		assert.strictEqual(store.getThreads().length, 1);
 		assert.strictEqual(store.getThreads()[0].filePath, 'src\\keep.ts');
+	});
+
+	test('remapThreadsForRename with forward-slash inputs', async () => {
+		const thread = await store.addThread('src/old.ts', 3, 'Forward slash');
+		const changed = await store.remapThreadsForRename('src/old.ts', 'src/new.ts');
+		assert.strictEqual(changed, 1);
+		assert.strictEqual(store.getThread(thread.id)!.filePath, 'src/new.ts');
+	});
+
+	test('remapThreadsForRename with mixed separator inputs', async () => {
+		const thread = await store.addThread('src\\mixed/old.ts', 1, 'Mixed');
+		const changed = await store.remapThreadsForRename('src/mixed/old.ts', 'src/mixed/new.ts');
+		assert.strictEqual(changed, 1);
+		assert.strictEqual(store.getThread(thread.id)!.filePath, 'src/mixed/new.ts');
+	});
+
+	test('remapThreadsForRename normalizes output to forward slashes', async () => {
+		const thread = await store.addThread('src\\deep\\path\\file.ts', 1, 'Backslash stored');
+		await store.remapThreadsForRename('src\\deep', 'src\\moved');
+		assert.ok(!store.getThread(thread.id)!.filePath.includes('\\'), 'output should use forward slashes');
+		assert.strictEqual(store.getThread(thread.id)!.filePath, 'src/moved/path/file.ts');
+	});
+
+	test('removeThreadsForDeletedPath works with forward-slash input', async () => {
+		await store.addThread('src/forward.ts', 1, 'Forward');
+		await store.addThread('src/keep.ts', 1, 'Keep');
+		const removed = await store.removeThreadsForDeletedPath('src/forward.ts');
+		assert.strictEqual(removed, 1);
+		assert.strictEqual(store.getThreads().length, 1);
+	});
+
+	test('removeThreadsForDeletedPath matches backslash-stored paths with forward-slash input', async () => {
+		await store.addThread('src\\backslash.ts', 1, 'Backslash stored');
+		const removed = await store.removeThreadsForDeletedPath('src/backslash.ts');
+		assert.strictEqual(removed, 1);
+		assert.strictEqual(store.getThreads().length, 0);
 	});
 
 	test('onDidChangeThreads fires on addThread', async () => {

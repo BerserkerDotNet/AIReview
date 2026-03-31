@@ -29,7 +29,7 @@ export class DocumentChangeTracker implements vscode.Disposable {
         // Collect all adjustments from this batch of changes
         // Changes are applied in order; we must process from last to first
         // to avoid earlier shifts invalidating later line positions.
-        const adjustments = this.computeAdjustments(event.contentChanges);
+        const adjustments = computeAdjustments(event.contentChanges);
 
         const key = relativePath;
         const existing = this.debounceTimers.get(key);
@@ -45,32 +45,34 @@ export class DocumentChangeTracker implements vscode.Disposable {
         this.debounceTimers.set(key, timer);
     }
 
-    /**
-     * Compute line adjustments for each content change.
-     * Processes changes in reverse order (bottom-to-top) so that line shifts
-     * from one change don't affect the anchor lines of earlier changes.
-     */
-    private computeAdjustments(
-        changes: ReadonlyArray<vscode.TextDocumentContentChangeEvent>
-    ): Array<{ changeStart: number; delta: number }> {
-        // Sort descending by start line so bottom changes are applied first
-        const sorted = [...changes].sort((a, b) => b.range.start.line - a.range.start.line);
 
-        return sorted.map(change => {
-            const linesRemoved = change.range.end.line - change.range.start.line;
-            const linesAdded = (change.text.match(/\n/g) ?? []).length;
-            const delta = linesAdded - linesRemoved;
-            return { changeStart: change.range.start.line + 1, delta };  // VS Code 0-indexed → store 1-indexed
-        }).filter(a => a.delta !== 0);
-    }
 
     dispose(): void {
         for (const timer of this.debounceTimers.values()) {
             clearTimeout(timer);
         }
         this.debounceTimers.clear();
-        for (const d of this.disposables) {
-            d.dispose();
+        for (const disposable of this.disposables) {
+            disposable.dispose();
         }
     }
+}
+
+/**
+ * Compute line adjustments for each content change.
+ * Processes changes in reverse order (bottom-to-top) so that line shifts
+ * from one change don't affect the anchor lines of earlier changes.
+ */
+export function computeAdjustments(
+    changes: ReadonlyArray<{ range: { start: { line: number }; end: { line: number } }; text: string }>
+): Array<{ changeStart: number; delta: number }> {
+    // Sort descending by start line so bottom changes are applied first
+    const sorted = [...changes].sort((a, b) => b.range.start.line - a.range.start.line);
+
+    return sorted.map(change => {
+        const linesRemoved = change.range.end.line - change.range.start.line;
+        const linesAdded = (change.text.match(/\n/g) ?? []).length;
+        const delta = linesAdded - linesRemoved;
+        return { changeStart: change.range.start.line + 1, delta };  // VS Code 0-indexed → store 1-indexed
+    }).filter(a => a.delta !== 0);
 }

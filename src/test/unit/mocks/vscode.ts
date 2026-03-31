@@ -97,6 +97,18 @@ export const window = {
     createTextEditorDecorationType: (_options: any) => ({
         dispose: () => {},
     }),
+    createOutputChannel: (_name: string) => ({
+        appendLine: (_value: string) => {},
+        dispose: () => {},
+    }),
+    createStatusBarItem: (_alignment?: any, _priority?: number) => ({
+        text: '',
+        tooltip: '' as string | undefined,
+        command: undefined as string | undefined,
+        show: () => {},
+        hide: () => {},
+        dispose: () => {},
+    }),
 };
 
 export const commands = {
@@ -115,12 +127,14 @@ export const comments = {
     createCommentController: (_id: string, _label: string) => ({
         options: {},
         commentingRangeProvider: undefined as any,
-        createCommentThread: (_uri: any, _range: any, _comments: any) => ({
+        createCommentThread: (uri: any, range: any, threadComments: any) => ({
+            uri,
+            range,
             contextValue: '',
             label: undefined as string | undefined,
             state: 0,
             canReply: true,
-            comments: [] as any[],
+            comments: threadComments ?? ([] as any[]),
             dispose: () => {},
         }),
         dispose: () => {},
@@ -154,6 +168,11 @@ export class Hover {
 
 export class ThemeColor {
     constructor(public readonly id: string) {}
+}
+
+export enum StatusBarAlignment {
+    Left = 1,
+    Right = 2,
 }
 
 export enum CommentMode {

@@ -7,18 +7,21 @@ import { ReviewCommentController } from './commentController';
 import { registerCommands } from './commands';
 import { DocumentChangeTracker } from './documentChangeTracker';
 import { FileLifecycleTracker } from './fileLifecycleTracker';
-
-let store: ReviewStore | undefined;
-let persistence: ReviewStorePersistence | undefined;
+import { StatusBarProvider } from './statusBarProvider';
+import { logInfo, logWarn, disposeLogger } from './logger';
 
 export function activate(context: vscode.ExtensionContext) {
-	persistence = new ReviewStorePersistence();
-	store = new ReviewStore();
+	const persistence = new ReviewStorePersistence();
+	const store = new ReviewStore();
 	store.setPersistence(persistence);
 	context.subscriptions.push(store);
 	context.subscriptions.push(persistence);
 
-	const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+	// Status bar thread counter
+	const statusBar = new StatusBarProvider(store);
+	context.subscriptions.push(statusBar);
+
+	const workspaceFolder= vscode.workspace.workspaceFolders?.[0];
 
 	// Phase 2: Decorations & gutter icons
 	const decorationProvider = new DecorationProvider(store, context);
@@ -48,13 +51,13 @@ export function activate(context: vscode.ExtensionContext) {
 	// Initialize persistence, then load data into store and sync comment threads
 	if (workspaceFolder) {
 		persistence.initialize(workspaceFolder).then(data => {
-			store!.loadData(data);
+			store.loadData(data);
 			commentController.syncFromStore();
-		}).catch((err) => { console.warn('AI Review: Failed to initialize store', err); });
+		}).catch((err) => { logWarn('Failed to initialize store', err); });
 
 		// Handle external file changes (e.g. another editor modifying .ai-review.json)
 		persistence.onExternalChange(data => {
-			store!.loadData(data);
+			store.loadData(data);
 		});
 	}
 
@@ -67,10 +70,11 @@ export function activate(context: vscode.ExtensionContext) {
 	const fileLifecycleTracker = new FileLifecycleTracker(store);
 	context.subscriptions.push(fileLifecycleTracker);
 
-	console.log('AI Changes Review extension is now active');
+	context.subscriptions.push({ dispose: disposeLogger });
+
+	logInfo('AI Changes Review extension is now active');
 }
 
 export function deactivate() {
-	store = undefined;
-	persistence = undefined;
+	// Cleanup handled by context.subscriptions disposal
 }

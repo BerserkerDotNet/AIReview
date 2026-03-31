@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ReviewStore } from './reviewStore';
+import { logWarn } from './logger';
 
 /**
  * Keeps .vscode/.ai-review.json thread paths in sync when files/folders are renamed or deleted.
@@ -10,10 +11,10 @@ export class FileLifecycleTracker implements vscode.Disposable {
     constructor(private store: ReviewStore) {
         this.disposables.push(
             vscode.workspace.onDidRenameFiles(e => {
-                void this.handleRename(e).catch(err => console.warn('AI Review: Error handling rename', err));
+                void this.handleRename(e).catch(err => logWarn('Error handling rename', err));
             }),
             vscode.workspace.onDidDeleteFiles(e => {
-                void this.handleDelete(e).catch(err => console.warn('AI Review: Error handling delete', err));
+                void this.handleDelete(e).catch(err => logWarn('Error handling delete', err));
             })
         );
     }
@@ -34,8 +35,8 @@ export class FileLifecycleTracker implements vscode.Disposable {
     }
 
     dispose(): void {
-        for (const d of this.disposables) {
-            d.dispose();
+        for (const disposable of this.disposables) {
+            disposable.dispose();
         }
     }
 }

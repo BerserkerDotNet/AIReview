@@ -2,6 +2,18 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { ReviewStore } from './reviewStore';
 import { ReviewThread } from './models';
+import type { ThreadChangeEvent } from './changeEvent';
+import {
+    ThreadMapLookup,
+    handleNewComment,
+    handleReply,
+    handleResolve,
+    handleUnresolve,
+    handleDelete,
+    handleEditInline,
+    handleSaveEdit,
+    handleCancelEdit,
+} from './commentCommands';
 
 /** Custom Comment class that tracks store IDs and supports cancel-on-edit. */
 export class ReviewNoteComment implements vscode.Comment {
@@ -22,7 +34,7 @@ export class ReviewNoteComment implements vscode.Comment {
     }
 }
 
-export class ReviewCommentController implements vscode.Disposable {
+export class ReviewCommentController implements vscode.Disposable, ThreadMapLookup {
     private controller: vscode.CommentController;
     private disposables: vscode.Disposable[] = [];
     // Maps store thread id → VS Code CommentThread
@@ -49,7 +61,7 @@ export class ReviewCommentController implements vscode.Disposable {
         this.disposables.push(
             vscode.commands.registerCommand(
                 'ai-review.submitComment',
-                (reply: vscode.CommentReply) => this.handleNewComment(reply)
+                (reply: vscode.CommentReply) => handleNewComment(reply, this.store)
             )
         );
 
@@ -57,7 +69,7 @@ export class ReviewCommentController implements vscode.Disposable {
         this.disposables.push(
             vscode.commands.registerCommand(
                 'ai-review.submitReply',
-                (reply: vscode.CommentReply) => this.handleReply(reply)
+                (reply: vscode.CommentReply) => handleReply(reply, this.store, this)
             )
         );
 
@@ -65,7 +77,7 @@ export class ReviewCommentController implements vscode.Disposable {
         this.disposables.push(
             vscode.commands.registerCommand(
                 'ai-review.resolveCommentThread',
-                (thread: vscode.CommentThread) => this.handleResolve(thread)
+                (thread: vscode.CommentThread) => handleResolve(thread, this.store, this)
             )
         );
 
@@ -73,7 +85,7 @@ export class ReviewCommentController implements vscode.Disposable {
         this.disposables.push(
             vscode.commands.registerCommand(
                 'ai-review.unresolveCommentThread',
-                (thread: vscode.CommentThread) => this.handleUnresolve(thread)
+                (thread: vscode.CommentThread) => handleUnresolve(thread, this.store, this)
             )
         );
 
@@ -81,7 +93,7 @@ export class ReviewCommentController implements vscode.Disposable {
         this.disposables.push(
             vscode.commands.registerCommand(
                 'ai-review.deleteCommentThread',
-                (thread: vscode.CommentThread) => this.handleDelete(thread)
+                (thread: vscode.CommentThread) => handleDelete(thread, this.store, this)
             )
         );
 
@@ -89,7 +101,7 @@ export class ReviewCommentController implements vscode.Disposable {
         this.disposables.push(
             vscode.commands.registerCommand(
                 'ai-review.editCommentInline',
-                (comment: ReviewNoteComment) => this.handleEditInline(comment)
+                (comment: ReviewNoteComment) => handleEditInline(comment, this)
             )
         );
 
@@ -97,7 +109,7 @@ export class ReviewCommentController implements vscode.Disposable {
         this.disposables.push(
             vscode.commands.registerCommand(
                 'ai-review.saveCommentEdit',
-                (comment: ReviewNoteComment) => this.handleSaveEdit(comment)
+                (comment: ReviewNoteComment) => handleSaveEdit(comment, this.store)
             )
         );
 
@@ -105,20 +117,93 @@ export class ReviewCommentController implements vscode.Disposable {
         this.disposables.push(
             vscode.commands.registerCommand(
                 'ai-review.cancelCommentEdit',
-                (comment: ReviewNoteComment) => this.handleCancelEdit(comment)
+                () => handleCancelEdit(this)
             )
         );
 
         // Sync when store changes externally (file watcher, etc.)
         this.disposables.push(
-            store.onDidChangeThreads(() => this.syncFromStore())
+            store.onDidChangeThreads((event) => this.syncFromStore(event))
         );
 
         this.disposables.push(this.controller);
     }
 
-    /** Build/rebuild all VS Code CommentThread objects from the store. */
-    async syncFromStore(): Promise<void> {
+    /** Build/rebuild all VS Code CommentThread objects from the store, or apply a targeted update. */
+    async syncFromStore(event?: ThreadChangeEvent): Promise<void> {
+        if (!event) {
+            return this.fullSync();
+        }
+
+        switch (event.type) {
+            case 'reload':
+                return this.fullSync();
+
+            case 'delete':
+                return this.syncDeletedThread(event.threadId);
+
+            case 'add':
+            case 'update':
+                if (event.threadId) {
+                    return this.syncSingleThread(event.threadId);
+                }
+                if (event.filePath) {
+                    return this.syncFileThreads(event.filePath);
+                }
+                return this.fullSync();
+        }
+    }
+
+    private syncDeletedThread(threadId?: string): void {
+        if (!threadId) { return; }
+        const existing = this.threadMap.get(threadId);
+        if (existing) {
+            existing.dispose();
+            this.threadMap.delete(threadId);
+        }
+    }
+
+    private syncSingleThread(threadId: string): void {
+        const reviewThread = this.store.getThread(threadId);
+        if (!reviewThread) { return; }
+        const existing = this.threadMap.get(threadId);
+        if (existing) {
+            this.updateVscodeThread(existing, reviewThread);
+        } else {
+            const created = this.createVscodeThread(reviewThread);
+            if (created) {
+                this.threadMap.set(reviewThread.id, created);
+            }
+        }
+    }
+
+    private syncFileThreads(filePath: string): void {
+        const fileThreads = this.store.getThreadsByFile(filePath);
+        const fileThreadIds = new Set(fileThreads.map(t => t.id));
+
+        for (const reviewThread of fileThreads) {
+            const existing = this.threadMap.get(reviewThread.id);
+            if (existing) {
+                this.updateVscodeThread(existing, reviewThread);
+            } else {
+                const created = this.createVscodeThread(reviewThread);
+                if (created) {
+                    this.threadMap.set(reviewThread.id, created);
+                }
+            }
+        }
+
+        // Remove stale threads for this file that are no longer in the store
+        for (const [id, thread] of this.threadMap) {
+            const relativePath = vscode.workspace.asRelativePath(thread.uri, false);
+            if (relativePath === filePath && !fileThreadIds.has(id)) {
+                thread.dispose();
+                this.threadMap.delete(id);
+            }
+        }
+    }
+
+    private async fullSync(): Promise<void> {
         const storeIds = new Set(this.store.getThreads().map(t => t.id));
 
         // Remove threads that no longer exist in the store
@@ -181,11 +266,15 @@ export class ReviewCommentController implements vscode.Disposable {
     }
 
     /** Extract the store thread ID by reverse-looking up the VS Code thread in the map. */
-    private getThreadId(thread: vscode.CommentThread): string | undefined {
-        for (const [id, t] of this.threadMap) {
-            if (t === thread) { return id; }
+    getThreadId(thread: vscode.CommentThread): string | undefined {
+        for (const [id, mappedThread] of this.threadMap) {
+            if (mappedThread === thread) { return id; }
         }
         return undefined;
+    }
+
+    getThreadMap(): Map<string, vscode.CommentThread> {
+        return this.threadMap;
     }
 
     private toVscodeComments(reviewThread: ReviewThread): ReviewNoteComment[] {
@@ -210,78 +299,13 @@ export class ReviewCommentController implements vscode.Disposable {
         });
     }
 
-    // --- Command handlers ---
-
-    private async handleNewComment(reply: vscode.CommentReply): Promise<void> {
-        const uri = reply.thread.uri;
-        const line = (reply.thread.range?.start.line ?? 0) + 1;  // VS Code 0-indexed → store 1-indexed
-        const relativePath = vscode.workspace.asRelativePath(uri, false);
-
-        // Dispose the placeholder thread VS Code created; syncFromStore will rebuild
-        reply.thread.dispose();
-
-        await this.store.addThread(relativePath, line, reply.text);
-        // store fires onDidChangeThreads → syncFromStore
-    }
-
-    private async handleReply(reply: vscode.CommentReply): Promise<void> {
-        const threadId = this.getThreadId(reply.thread);
-        if (!threadId) { return; }
-        await this.store.addComment(threadId, 'user', reply.text);
-    }
-
-    private async handleResolve(thread: vscode.CommentThread): Promise<void> {
-        const threadId = this.getThreadId(thread);
-        if (!threadId) { return; }
-        await this.store.setThreadStatus(threadId, 'resolved');
-    }
-
-    private async handleUnresolve(thread: vscode.CommentThread): Promise<void> {
-        const threadId = this.getThreadId(thread);
-        if (!threadId) { return; }
-        await this.store.setThreadStatus(threadId, 'open');
-    }
-
-    private async handleDelete(thread: vscode.CommentThread): Promise<void> {
-        const threadId = this.getThreadId(thread);
-        if (!threadId) { return; }
-        await this.store.deleteThread(threadId);
-    }
-
-    private handleEditInline(comment: ReviewNoteComment): void {
-        if (!comment.threadId || !comment.commentId) { return; }
-        comment.body = comment.savedBody;
-        comment.mode = vscode.CommentMode.Editing;
-
-        const thread = this.threadMap.get(comment.threadId);
-        if (thread) {
-            thread.comments = [...thread.comments];
-        }
-    }
-
-    private async handleSaveEdit(comment: ReviewNoteComment): Promise<void> {
-        if (!comment.threadId || !comment.commentId) { return; }
-        const newBody = typeof comment.body === 'string'
-            ? comment.body
-            : comment.body.value;
-
-        if (!newBody.trim()) { return; }
-
-        await this.store.editComment(comment.threadId, comment.commentId, newBody.trim());
-        // store fires onDidChangeThreads → syncFromStore rebuilds in Preview mode
-    }
-
-    private handleCancelEdit(_comment: ReviewNoteComment): void {
-        this.syncFromStore();
-    }
-
     dispose(): void {
         for (const [, thread] of this.threadMap) {
             thread.dispose();
         }
         this.threadMap.clear();
-        for (const d of this.disposables) {
-            d.dispose();
+        for (const disposable of this.disposables) {
+            disposable.dispose();
         }
     }
 }

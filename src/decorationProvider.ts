@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { ReviewStore } from './reviewStore';
 import { buildCommandUri } from './utils';
+import type { ThreadChangeEvent } from './changeEvent';
 
 export class DecorationProvider implements vscode.Disposable {
     private disposables: vscode.Disposable[] = [];
@@ -18,9 +19,20 @@ export class DecorationProvider implements vscode.Disposable {
 
         this.decorationType = this.createDecorationType();
 
-        // Refresh decorations when threads change
+        // Refresh decorations when threads change (scoped to affected file when possible)
         this.disposables.push(
-            store.onDidChangeThreads(() => this.refreshAll())
+            store.onDidChangeThreads((event: ThreadChangeEvent) => {
+                if (event.filePath && event.type !== 'reload') {
+                    for (const editor of vscode.window.visibleTextEditors) {
+                        const rel = vscode.workspace.asRelativePath(editor.document.uri, false);
+                        if (rel === event.filePath) {
+                            this.refreshEditor(editor);
+                        }
+                    }
+                } else {
+                    this.refreshAll();
+                }
+            })
         );
 
         // Refresh when active editor changes
@@ -101,8 +113,8 @@ export class DecorationProvider implements vscode.Disposable {
 
     dispose(): void {
         this.decorationType.dispose();
-        for (const d of this.disposables) {
-            d.dispose();
+        for (const disposable of this.disposables) {
+            disposable.dispose();
         }
     }
 }

@@ -1,78 +1,47 @@
-import * as path from 'path';
-import { ReviewData, ReviewThread, ReviewComment } from './models';
+import { ReviewData, ReviewThread, ReviewComment, CURRENT_VERSION } from './models';
+import { SimpleEventEmitter } from './events';
 import { generateThreadId, generateCommentId } from './idGenerator';
-
-const CURRENT_VERSION = 1;
-
-/** Minimal event interface matching vscode.EventEmitter's shape */
-interface SimpleEvent<T> {
-    (listener: (e: T) => void): { dispose(): void };
-}
-
-class SimpleEventEmitter<T> {
-    private listeners: Array<(e: T) => void> = [];
-
-    readonly event: SimpleEvent<T> = (listener) => {
-        this.listeners.push(listener);
-        return { dispose: () => { this.listeners = this.listeners.filter(l => l !== listener); } };
-    };
-
-    fire(data: T): void {
-        for (const listener of this.listeners) {
-            listener(data);
-        }
-    }
-
-    dispose(): void {
-        this.listeners = [];
-    }
-}
-
-/** Persistence interface — implemented by ReviewStorePersistence for real I/O, or mocked in tests */
-export interface IPersistence {
-    save(data: ReviewData): Promise<void>;
-}
+import { adjustThreadLineNumbers } from './threadAnchorService';
+import { remapThreadPaths, removeThreadsByPath } from './threadPathService';
+import type { IReviewStorePersistence } from './reviewStorePersistence';
+import type { ThreadChangeEvent } from './changeEvent';
 
 export class ReviewStore {
     private data: ReviewData = { version: CURRENT_VERSION, threads: [] };
-    private persistence: IPersistence | undefined;
+    private fileIndex = new Map<string, ReviewThread[]>();
+    private persistence: IReviewStorePersistence | undefined;
 
-    private readonly _onDidChangeThreads = new SimpleEventEmitter<void>();
+    private readonly _onDidChangeThreads = new SimpleEventEmitter<ThreadChangeEvent>();
     public readonly onDidChangeThreads = this._onDidChangeThreads.event;
 
-    /**
-     * Attach a persistence backend. Called by extension.ts after creating both objects.
-     */
-    setPersistence(persistence: IPersistence): void {
+    setPersistence(persistence: IReviewStorePersistence): void {
         this.persistence = persistence;
     }
 
-    /**
-     * Load data from an external source (called after persistence.initialize()).
-     */
     loadData(data: ReviewData): void {
         if (data.version && Array.isArray(data.threads)) {
             this.data = data;
         }
-        this._onDidChangeThreads.fire();
+        this.rebuildFileIndex();
+        this._onDidChangeThreads.fire({ type: 'reload' });
     }
 
-    // --- CRUD Operations ---
+    // --- Getters ---
 
     getThreads(): ReadonlyArray<ReviewThread> {
         return this.data.threads;
     }
 
     getThreadsByFile(filePath: string): ReviewThread[] {
-        return this.data.threads.filter(t => t.filePath === filePath);
+        return this.fileIndex.get(filePath) ?? [];
     }
 
     getOpenThreadsByFile(filePath: string): ReviewThread[] {
-        return this.data.threads.filter(t => t.filePath === filePath && t.status === 'open');
+        return (this.fileIndex.get(filePath) ?? []).filter(t => t.status === 'open');
     }
 
     getThreadByFileAndLine(filePath: string, lineNumber: number): ReviewThread | undefined {
-        return this.data.threads.find(t => t.filePath === filePath && t.status === 'open' && t.lineNumber === lineNumber);
+        return (this.fileIndex.get(filePath) ?? []).find(t => t.status === 'open' && t.lineNumber === lineNumber);
     }
 
     getThread(threadId: string): ReviewThread | undefined {
@@ -82,6 +51,8 @@ export class ReviewStore {
     getData(): ReviewData {
         return this.data;
     }
+
+    // --- CRUD Operations ---
 
     async addThread(filePath: string, lineNumber: number, body: string): Promise<ReviewThread> {
         const thread: ReviewThread = {
@@ -100,16 +71,15 @@ export class ReviewStore {
             ],
         };
         this.data.threads.push(thread);
+        this.rebuildFileIndex();
         await this.save();
-        this._onDidChangeThreads.fire();
+        this._onDidChangeThreads.fire({ type: 'add', threadId: thread.id, filePath });
         return thread;
     }
 
     async addComment(threadId: string, author: 'user' | 'llm', body: string): Promise<ReviewComment | undefined> {
         const thread = this.getThread(threadId);
-        if (!thread) {
-            return undefined;
-        }
+        if (!thread) { return undefined; }
         const comment: ReviewComment = {
             id: generateCommentId(),
             author,
@@ -118,155 +88,98 @@ export class ReviewStore {
         };
         thread.comments.push(comment);
         await this.save();
-        this._onDidChangeThreads.fire();
+        this._onDidChangeThreads.fire({ type: 'update', threadId, filePath: thread.filePath });
         return comment;
     }
 
-    async editComment(threadId: string, commentId: string, newBody: string, editor: 'user' | 'llm' = 'user'): Promise<boolean> {
+    async editComment(threadId: string, commentId: string, newBody: string, _editor: 'user' | 'llm' = 'user'): Promise<boolean> {
         const thread = this.getThread(threadId);
-        if (!thread) {
-            return false;
-        }
+        if (!thread) { return false; }
         const comment = thread.comments.find(c => c.id === commentId);
-        if (!comment) {
-            return false;
-        }
+        if (!comment) { return false; }
         comment.body = newBody;
         comment.editedAt = new Date().toISOString();
         await this.save();
-        this._onDidChangeThreads.fire();
+        this._onDidChangeThreads.fire({ type: 'update', threadId, filePath: thread.filePath });
         return true;
     }
 
     async setThreadStatus(threadId: string, status: 'open' | 'resolved'): Promise<boolean> {
         const thread = this.getThread(threadId);
-        if (!thread) {
-            return false;
-        }
+        if (!thread) { return false; }
         thread.status = status;
         await this.save();
-        this._onDidChangeThreads.fire();
+        this._onDidChangeThreads.fire({ type: 'update', threadId, filePath: thread.filePath });
         return true;
     }
 
     async deleteThread(threadId: string): Promise<boolean> {
         const index = this.data.threads.findIndex(t => t.id === threadId);
-        if (index === -1) {
-            return false;
-        }
+        if (index === -1) { return false; }
+        const filePath = this.data.threads[index].filePath;
         this.data.threads.splice(index, 1);
+        this.rebuildFileIndex();
         await this.save();
-        this._onDidChangeThreads.fire();
+        this._onDidChangeThreads.fire({ type: 'delete', threadId, filePath });
         return true;
     }
 
-    /**
-     * Remove all resolved threads from the store.
-     * Returns the number of threads removed.
-     */
     async clearResolvedThreads(): Promise<number> {
         const before = this.data.threads.length;
         this.data.threads = this.data.threads.filter(t => t.status !== 'resolved');
         const removedCount = before - this.data.threads.length;
         if (removedCount > 0) {
+            this.rebuildFileIndex();
             await this.save();
-            this._onDidChangeThreads.fire();
+            this._onDidChangeThreads.fire({ type: 'reload' });
         }
         return removedCount;
     }
 
-    /**
-     * Adjust thread line numbers for a file when lines are inserted or deleted.
-     * Called by DocumentChangeTracker on every document change.
-     *
-     * @param filePath   Relative file path
-     * @param changeStart  The line where the edit started
-     * @param delta        Positive = lines inserted, negative = lines deleted
-     */
+    // --- Anchor & path operations (delegate to extracted services) ---
+
     async adjustLineNumbers(filePath: string, changeStart: number, delta: number): Promise<void> {
         if (delta === 0) { return; }
-        let changed = false;
-
-        for (const thread of this.data.threads) {
-            if (thread.filePath !== filePath) { continue; }
-
-            if (thread.lineNumber > changeStart) {
-                // Thread is below or inside the edit — shift it (clamped to changeStart)
-                thread.lineNumber = Math.max(changeStart, thread.lineNumber + delta);
-                changed = true;
-            }
-        }
-
+        const changed = adjustThreadLineNumbers(this.data.threads, filePath, changeStart, delta);
         if (changed) {
             await this.save();
-            this._onDidChangeThreads.fire();
+            this._onDidChangeThreads.fire({ type: 'update', filePath });
         }
     }
 
-    /**
-     * Remap thread file paths after a file/folder rename.
-     * Supports exact file renames and folder renames.
-     */
     async remapThreadsForRename(oldPath: string, newPath: string): Promise<number> {
-        if (!oldPath || !newPath || oldPath === newPath) {
-            return 0;
-        }
-
-        const oldExact = oldPath.toLowerCase();
-        const oldPrefix = oldPath.endsWith(path.sep) ? oldPath : `${oldPath}${path.sep}`;
-        const oldPrefixLower = oldPrefix.toLowerCase();
-        let changedCount = 0;
-
-        for (const thread of this.data.threads) {
-            const threadPathLower = thread.filePath.toLowerCase();
-            if (threadPathLower === oldExact) {
-                thread.filePath = newPath;
-                changedCount++;
-                continue;
-            }
-            if (threadPathLower.startsWith(oldPrefixLower)) {
-                const suffix = thread.filePath.slice(oldPrefix.length);
-                thread.filePath = path.join(newPath, suffix);
-                changedCount++;
-            }
-        }
-
+        if (!oldPath || !newPath || oldPath === newPath) { return 0; }
+        const changedCount = remapThreadPaths(this.data.threads, oldPath, newPath);
         if (changedCount > 0) {
+            this.rebuildFileIndex();
             await this.save();
-            this._onDidChangeThreads.fire();
+            this._onDidChangeThreads.fire({ type: 'reload' });
         }
-
         return changedCount;
     }
 
-    /**
-     * Remove threads for a deleted file/folder path.
-     * Supports exact file deletes and folder deletes.
-     */
     async removeThreadsForDeletedPath(deletedPath: string): Promise<number> {
-        if (!deletedPath) {
-            return 0;
-        }
-
-        const deletedExact = deletedPath.toLowerCase();
-        const deletedPrefix = deletedPath.endsWith(path.sep)
-            ? deletedPath
-            : `${deletedPath}${path.sep}`;
-        const deletedPrefixLower = deletedPrefix.toLowerCase();
-        const before = this.data.threads.length;
-
-        this.data.threads = this.data.threads.filter(thread => {
-            const threadPathLower = thread.filePath.toLowerCase();
-            return threadPathLower !== deletedExact && !threadPathLower.startsWith(deletedPrefixLower);
-        });
-
-        const removedCount = before - this.data.threads.length;
+        if (!deletedPath) { return 0; }
+        const { remaining, removedCount } = removeThreadsByPath(this.data.threads, deletedPath);
         if (removedCount > 0) {
+            this.data.threads = remaining;
+            this.rebuildFileIndex();
             await this.save();
-            this._onDidChangeThreads.fire();
+            this._onDidChangeThreads.fire({ type: 'reload' });
         }
-
         return removedCount;
+    }
+
+    private rebuildFileIndex(): void {
+        this.fileIndex.clear();
+        for (const thread of this.data.threads) {
+            let fileThreads = this.fileIndex.get(thread.filePath);
+            if (!fileThreads) {
+                fileThreads = [];
+                this.fileIndex.set(thread.filePath, fileThreads);
+            }
+            fileThreads.push(thread);
+        }
     }
 
     private async save(): Promise<void> {
