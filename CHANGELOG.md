@@ -4,6 +4,41 @@ All notable changes to the **AI Changes Review** extension will be documented in
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] — Maintainability, Performance & Test Coverage
+
+### Added
+- **Status bar thread counter** — shows `💬 N open · ✅ M` in the status bar; click to open Comments panel; hides when no threads exist
+- **Next/Previous thread navigation** — `Alt+F2` / `Alt+Shift+F2` to jump between open review threads within and across files
+- **Resolve thread at line** keybinding — `Ctrl+Shift+E` (`Cmd+Shift+E` on Mac) to instantly resolve the thread at the cursor without a picker
+- **Structured logging** — all extension output now routes through a dedicated `AI Changes Review` Output Channel instead of the console
+- **Cross-platform path normalization** — thread paths are consistently stored with forward slashes, fixing potential mismatches on Windows
+
+### Changed
+- **Decomposed large modules** for maintainability:
+  - `reviewStore.ts` (279→192 lines) — extracted `threadAnchorService.ts`, `threadPathService.ts`, `events.ts`
+  - `commands.ts` (294→206 lines) — extracted `commandUtils.ts`, `setupCopilotPluginCommand.ts`, `threadNavigation.ts`
+  - `commentController.ts` — extracted command handlers to `commentCommands.ts`; refactored `syncFromStore` to a clean switch dispatch with focused private methods
+- **Performance optimizations**:
+  - `Map<filePath, threads[]>` index in ReviewStore — file-based queries are now O(1) instead of O(n)
+  - Scoped `syncFromStore` with `ThreadChangeEvent` — single-thread mutations update only the affected thread, not the entire list
+  - Scoped decoration refresh — only editors showing the affected file are repainted
+  - HoverProvider early-exit for files with zero threads
+- **Persistence race condition fixed** — replaced fragile `setTimeout`-based write flag with a generation counter that correctly handles slow saves and rapid successive writes
+- **Stricter TypeScript** — enabled `noImplicitReturns`, `noFallthroughCasesInSwitch`, `noUnusedParameters`
+- **Consolidated persistence interfaces** — removed duplicate `IPersistence`; single `IReviewStorePersistence` interface
+- **Improved variable naming** — replaced short names (`reg`, `fn`, `arr`, `cid`, `d`) with descriptive names across the codebase
+- **Updated gutter icon** — replaced solid green comment bubble with a neutral outline style matching VS Code's native codicon aesthetic
+
+### Removed
+- Unused `sinon` / `@types/sinon` dev dependencies
+
+### Tests
+- **Unit tests**: 24 → 201 (+177) — new suites for commands, commentController, hoverProvider, documentChangeTracker, events, threadNavigation, logger, statusBarProvider, and edge cases
+- **Integration tests**: 142 → 160 (+18) — scoped sync events, persistence edge cases, navigation commands, path normalization
+- **Performance regression tests** — canary suite with 1,000 threads verifying O(1) lookups
+
+---
+
 ## [1.0.1] — Dependency Updates
 
 ### Changed
