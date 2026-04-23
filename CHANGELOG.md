@@ -4,6 +4,13 @@ All notable changes to the **AI Changes Review** extension will be documented in
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] — Badge Fix
+
+### Fixed
+- Replaced broken `shields.io` VS Code Marketplace badge with `vsmarketplacebadges.dev` — badge now correctly shows the published version instead of "retired badge"
+
+---
+
 ## [1.1.0] — Maintainability, Performance & Test Coverage
 
 ### Added
