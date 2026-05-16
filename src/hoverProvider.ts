@@ -16,6 +16,13 @@ export class ReviewHoverProvider implements vscode.HoverProvider, vscode.Disposa
         document: vscode.TextDocument,
         position: vscode.Position,
     ): vscode.Hover | undefined {
+        // Only provide hover for files that belong to an open workspace folder.
+        // This avoids polluting hovers on extension source files, settings files,
+        // or any other file opened outside the workspace.
+        if (!vscode.workspace.getWorkspaceFolder(document.uri)) {
+            return undefined;
+        }
+
         const relativePath = vscode.workspace.asRelativePath(document.uri, false);
         const fileThreads = this.store.getThreadsByFile(relativePath);
 

@@ -204,6 +204,36 @@ suite('ReviewCommentController — Unit Tests', () => {
 
             assert.strictEqual(controller.getThreadId(unknownThread), undefined);
         });
+
+        test('reverse map stays consistent after add → delete cycle', async () => {
+            // Add a thread
+            store.loadData({ version: 1, threads: [makeReviewThread({ id: 'cycle-1' })] });
+            const vscThread = controller.getThreadMap().get('cycle-1')!;
+            assert.strictEqual(controller.getThreadId(vscThread), 'cycle-1', 'should resolve after add');
+
+            // Delete the thread
+            await controller.syncFromStore({ type: 'delete', threadId: 'cycle-1' });
+            assert.strictEqual(controller.getThreadId(vscThread), undefined, 'should be gone after delete');
+            assert.strictEqual(controller.getThreadMap().has('cycle-1'), false);
+        });
+
+        test('reverse map stays consistent after file-level sync that removes a thread', async () => {
+            const t1 = makeReviewThread({ id: 'rm-f1', filePath: 'src/x.ts' });
+            const t2 = makeReviewThread({ id: 'rm-f2', filePath: 'src/x.ts' });
+            store.loadData({ version: 1, threads: [t1, t2] });
+
+            const vsc1 = controller.getThreadMap().get('rm-f1')!;
+            const vsc2 = controller.getThreadMap().get('rm-f2')!;
+            assert.strictEqual(controller.getThreadId(vsc1), 'rm-f1');
+            assert.strictEqual(controller.getThreadId(vsc2), 'rm-f2');
+
+            // Remove t2 from store and trigger file sync
+            store.loadData({ version: 1, threads: [t1] });
+            await controller.syncFromStore({ type: 'update', filePath: 'src/x.ts' });
+
+            assert.strictEqual(controller.getThreadId(vsc1), 'rm-f1', 'remaining thread should still resolve');
+            assert.strictEqual(controller.getThreadId(vsc2), undefined, 'removed thread should not resolve');
+        });
     });
 
     // -----------------------------------------------------------------------

@@ -96,6 +96,22 @@ suite('commentCommands — unit tests', () => {
         assert.ok(disposed, 'placeholder thread should be disposed');
     });
 
+    test('handleNewComment does not dispose placeholder when store.addThread throws', async () => {
+        const uri = makeUri('src/fail.ts');
+        const mockThread = makeMockThread(uri, 0);
+        let disposed = false;
+        mockThread.dispose = () => { disposed = true; };
+
+        const failingStore = {
+            addThread: async () => { throw new Error('Save failed'); },
+        } as any;
+
+        const reply: vscode.CommentReply = { thread: mockThread, text: 'REVIEW: anything' };
+        await assert.rejects(() => handleNewComment(reply, failingStore), /Save failed/);
+
+        assert.strictEqual(disposed, false, 'placeholder should NOT be disposed when store throws');
+    });
+
     // -- handleReply --------------------------------------------------------
 
     test('handleReply adds comment to the correct thread', async () => {
