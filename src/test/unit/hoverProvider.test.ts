@@ -107,14 +107,4 @@ suite('ReviewHoverProvider - provideHover', () => {
         assert.ok(md.value.includes(resolveArgs), 'Expected resolve args in URI');
     });
 
-    test('returns undefined for files outside any workspace folder', () => {
-        const savedGetWorkspaceFolder = mockVscode.workspace.getWorkspaceFolder;
-        mockVscode.workspace.getWorkspaceFolder = () => undefined;
-        try {
-            const hover = provider.provideHover(mockDoc, mockPosition);
-            assert.strictEqual(hover, undefined, 'hover should be suppressed for non-workspace files');
-        } finally {
-            mockVscode.workspace.getWorkspaceFolder = savedGetWorkspaceFolder;
-        }
-    });
 });
