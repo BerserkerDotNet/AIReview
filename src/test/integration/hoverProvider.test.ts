@@ -16,7 +16,20 @@ suite('ReviewHoverProvider Test Suite', () => {
 
     setup(async () => {
         tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-review-hover-test-'));
-        workspaceFolder = { uri: vscode.Uri.file(tmpDir), name: 'test', index: 0 };
+
+        // Register tmpDir with VS Code so getWorkspaceFolder() resolves correctly
+        await new Promise<void>(resolve => {
+            const sub = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+                sub.dispose();
+                resolve();
+            });
+            vscode.workspace.updateWorkspaceFolders(
+                vscode.workspace.workspaceFolders?.length ?? 0, null,
+                { uri: vscode.Uri.file(tmpDir), name: 'test' }
+            );
+        });
+        workspaceFolder = vscode.workspace.workspaceFolders!.find((f: vscode.WorkspaceFolder) => f.uri.fsPath === tmpDir)!;
+
         persistence = new ReviewStorePersistence();
         store = new ReviewStore();
         store.setPersistence(persistence);
@@ -25,10 +38,23 @@ suite('ReviewHoverProvider Test Suite', () => {
         hoverProvider = new ReviewHoverProvider(store);
     });
 
-    teardown(() => {
+    teardown(async () => {
         hoverProvider.dispose();
         persistence.dispose();
         store.dispose();
+
+        const folders = vscode.workspace.workspaceFolders ?? [];
+        const idx = folders.findIndex((f: vscode.WorkspaceFolder) => f.uri.fsPath === tmpDir);
+        if (idx >= 0) {
+            await new Promise<void>(resolve => {
+                const sub = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+                    sub.dispose();
+                    resolve();
+                });
+                vscode.workspace.updateWorkspaceFolders(idx, 1);
+            });
+        }
+
         fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
