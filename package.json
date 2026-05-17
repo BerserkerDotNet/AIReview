@@ -185,16 +185,6 @@
           "command": "ai-review.deleteCommentThread",
           "group": "inline@2",
           "when": "commentController == ai-review && commentThreadIsEmpty == false"
-        },
-        {
-          "command": "ai-review.addImage",
-          "group": "inline@3",
-          "when": "commentController == ai-review && commentThreadIsEmpty == false && commentThread == open"
-        },
-        {
-          "command": "ai-review.pasteImage",
-          "group": "inline@4",
-          "when": "commentController == ai-review && commentThreadIsEmpty == false && commentThread == open"
         }
       ],
       "comments/comment/title": [
