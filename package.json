@@ -160,12 +160,6 @@
         "command": "ai-review.pasteImage",
         "title": "Paste Image from Clipboard",
         "icon": "$(clippy)"
-      },
-      {
-        "command": "ai-review.submitWithImage",
-        "title": "Add with Image",
-        "icon": "$(file-media)",
-        "enablement": "!commentIsEmpty"
       }
     ],
     "menus": {
@@ -229,17 +223,7 @@
           "when": "commentController == ai-review && commentThreadIsEmpty"
         },
         {
-          "command": "ai-review.submitWithImage",
-          "group": "inline",
-          "when": "commentController == ai-review && commentThreadIsEmpty"
-        },
-        {
           "command": "ai-review.submitReply",
-          "group": "inline",
-          "when": "commentController == ai-review && !commentThreadIsEmpty"
-        },
-        {
-          "command": "ai-review.submitWithImage",
           "group": "inline",
           "when": "commentController == ai-review && !commentThreadIsEmpty"
         }
