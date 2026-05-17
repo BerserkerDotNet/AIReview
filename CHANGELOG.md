@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Changed
+- **O(1) reverse map for thread lookup** — `commentController` now maintains a `reverseMap` for O(1) `getThreadId` lookups instead of O(n) linear scans; all sync paths keep the map consistent
+- **Single-pass status bar counter** — `statusBarProvider` replaces two `.filter()` calls with one loop
+- **Smarter decoration refresh** — `decorationProvider` skips `refreshAll` on `onDidOpenTextDocument` when the file has no review threads
+- **Workspace-scoped hover** — `hoverProvider` suppresses hover for URIs outside any workspace folder
+
+### Fixed
+- **Comment text preserved on store failure** — `commentCommands` now disposes the placeholder thread *after* `store.addThread` succeeds, so user text is not lost if the store write fails
+- **Unified reopen/unresolve** — removed duplicate `reopenThread` / `unresolveThread` implementations; unified to a single code path
+
 ### Removed
 - Removed the prematurely exposed `Add with Image` action and extra thread title image buttons (`ai-review.submitWithImage`, `ai-review.addImage`, `ai-review.pasteImage`)
 
