@@ -4,6 +4,13 @@ All notable changes to the **AI Changes Review** extension will be documented in
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Removed
+- Removed the prematurely exposed `Add with Image` action and extra thread title image buttons (`ai-review.submitWithImage`, `ai-review.addImage`, `ai-review.pasteImage`)
+
+---
+
 ## [1.1.1] — Badge Fix
 
 ### Fixed

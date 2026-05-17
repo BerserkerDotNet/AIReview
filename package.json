@@ -160,12 +160,6 @@
         "command": "ai-review.pasteImage",
         "title": "Paste Image from Clipboard",
         "icon": "$(clippy)"
-      },
-      {
-        "command": "ai-review.submitWithImage",
-        "title": "Add with Image",
-        "icon": "$(file-media)",
-        "enablement": "!commentIsEmpty"
       }
     ],
     "menus": {
@@ -191,16 +185,6 @@
           "command": "ai-review.deleteCommentThread",
           "group": "inline@2",
           "when": "commentController == ai-review && commentThreadIsEmpty == false"
-        },
-        {
-          "command": "ai-review.addImage",
-          "group": "inline@3",
-          "when": "commentController == ai-review && commentThreadIsEmpty == false && commentThread == open"
-        },
-        {
-          "command": "ai-review.pasteImage",
-          "group": "inline@4",
-          "when": "commentController == ai-review && commentThreadIsEmpty == false && commentThread == open"
         }
       ],
       "comments/comment/title": [
@@ -229,17 +213,7 @@
           "when": "commentController == ai-review && commentThreadIsEmpty"
         },
         {
-          "command": "ai-review.submitWithImage",
-          "group": "inline",
-          "when": "commentController == ai-review && commentThreadIsEmpty"
-        },
-        {
           "command": "ai-review.submitReply",
-          "group": "inline",
-          "when": "commentController == ai-review && !commentThreadIsEmpty"
-        },
-        {
-          "command": "ai-review.submitWithImage",
           "group": "inline",
           "when": "commentController == ai-review && !commentThreadIsEmpty"
         }
