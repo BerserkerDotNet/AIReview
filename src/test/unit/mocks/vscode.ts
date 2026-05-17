@@ -69,6 +69,7 @@ export const workspace = {
         if (typeof uri === 'string') { return uri; }
         return uri.fsPath || uri.path || String(uri);
     },
+    getWorkspaceFolder: (_uri: any): any => ({ uri: Uri.file('/workspace'), name: 'workspace', index: 0 }),
     getConfiguration: (_section?: string) => ({
         get: <T>(_key: string, defaultValue?: T): T | undefined => defaultValue,
     }),

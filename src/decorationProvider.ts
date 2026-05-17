@@ -40,9 +40,16 @@ export class DecorationProvider implements vscode.Disposable {
             vscode.window.onDidChangeActiveTextEditor(() => this.refreshAll())
         );
 
-        // Refresh when a document is opened
+        // Refresh when a document is opened — but only if it has review threads,
+        // since refreshAll is otherwise a no-op for that file and all other
+        // visible editors already have up-to-date decorations.
         this.disposables.push(
-            vscode.workspace.onDidOpenTextDocument(() => this.refreshAll())
+            vscode.workspace.onDidOpenTextDocument(doc => {
+                const rel = vscode.workspace.asRelativePath(doc.uri, false);
+                if (this.store.getOpenThreadsByFile(rel).length > 0) {
+                    this.refreshAll();
+                }
+            })
         );
 
         // Recreate decorations when the configured color changes

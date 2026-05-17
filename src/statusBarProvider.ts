@@ -23,12 +23,17 @@ export class StatusBarProvider implements vscode.Disposable {
 
     private update(): void {
         const threads = this.store.getThreads();
-        const openCount = threads.filter(t => t.status === 'open').length;
-        const resolvedCount = threads.filter(t => t.status === 'resolved').length;
 
         if (threads.length === 0) {
             this.statusBarItem.hide();
             return;
+        }
+
+        let openCount = 0;
+        let resolvedCount = 0;
+        for (const t of threads) {
+            if (t.status === 'open') { openCount++; }
+            else if (t.status === 'resolved') { resolvedCount++; }
         }
 
         this.statusBarItem.text = `💬 ${openCount} open`;

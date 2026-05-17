@@ -106,4 +106,5 @@ suite('ReviewHoverProvider - provideHover', () => {
         assert.ok(md.value.includes(replyArgs), 'Expected reply args in URI');
         assert.ok(md.value.includes(resolveArgs), 'Expected resolve args in URI');
     });
+
 });

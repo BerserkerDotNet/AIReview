@@ -16,6 +16,9 @@ export class ReviewHoverProvider implements vscode.HoverProvider, vscode.Disposa
         document: vscode.TextDocument,
         position: vscode.Position,
     ): vscode.Hover | undefined {
+        if (!vscode.workspace.getWorkspaceFolder(document.uri)) {
+            return undefined;
+        }
         const relativePath = vscode.workspace.asRelativePath(document.uri, false);
         const fileThreads = this.store.getThreadsByFile(relativePath);
 

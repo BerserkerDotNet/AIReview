@@ -78,6 +78,13 @@ export function registerCommands(
         await store.setThreadStatus(id, 'open');
     });
 
+    // Reopen thread (alias for unresolveThread kept for back-compat and discoverability)
+    registerCommand('ai-review.reopenThread', async (threadId?: string) => {
+        const id = threadId ?? await pickThread(store, 'resolved');
+        if (!id) { return; }
+        await store.setThreadStatus(id, 'open');
+    });
+
     // Delete thread
     registerCommand('ai-review.deleteThread', async (threadId?: string) => {
         const id = threadId ?? await pickThread(store);
@@ -126,13 +133,6 @@ export function registerCommands(
         });
         if (newBody === undefined) { return; }
         await store.editComment(id, targetCommentId, newBody.trim(), 'user');
-    });
-
-    // Reopen thread (alias for unresolve, more discoverable name)
-    registerCommand('ai-review.reopenThread', async (threadId?: string) => {
-        const id = threadId ?? await pickThread(store, 'resolved');
-        if (!id) { return; }
-        await store.setThreadStatus(id, 'open');
     });
 
     // Clear all resolved threads

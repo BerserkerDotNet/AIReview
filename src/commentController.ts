@@ -39,6 +39,8 @@ export class ReviewCommentController implements vscode.Disposable, ThreadMapLook
     private disposables: vscode.Disposable[] = [];
     // Maps store thread id → VS Code CommentThread
     private threadMap = new Map<string, vscode.CommentThread>();
+    // Reverse map for O(1) id lookup by VS Code thread object
+    private reverseMap = new Map<vscode.CommentThread, string>();
 
     constructor(private store: ReviewStore) {
         this.controller = vscode.comments.createCommentController(
@@ -159,6 +161,7 @@ export class ReviewCommentController implements vscode.Disposable, ThreadMapLook
         const existing = this.threadMap.get(threadId);
         if (existing) {
             existing.dispose();
+            this.reverseMap.delete(existing);
             this.threadMap.delete(threadId);
         }
     }
@@ -173,6 +176,7 @@ export class ReviewCommentController implements vscode.Disposable, ThreadMapLook
             const created = this.createVscodeThread(reviewThread);
             if (created) {
                 this.threadMap.set(reviewThread.id, created);
+                this.reverseMap.set(created, reviewThread.id);
             }
         }
     }
@@ -189,6 +193,7 @@ export class ReviewCommentController implements vscode.Disposable, ThreadMapLook
                 const created = this.createVscodeThread(reviewThread);
                 if (created) {
                     this.threadMap.set(reviewThread.id, created);
+                    this.reverseMap.set(created, reviewThread.id);
                 }
             }
         }
@@ -198,6 +203,7 @@ export class ReviewCommentController implements vscode.Disposable, ThreadMapLook
             const relativePath = vscode.workspace.asRelativePath(thread.uri, false);
             if (relativePath === filePath && !fileThreadIds.has(id)) {
                 thread.dispose();
+                this.reverseMap.delete(thread);
                 this.threadMap.delete(id);
             }
         }
@@ -210,6 +216,7 @@ export class ReviewCommentController implements vscode.Disposable, ThreadMapLook
         for (const [id, thread] of this.threadMap) {
             if (!storeIds.has(id)) {
                 thread.dispose();
+                this.reverseMap.delete(thread);
                 this.threadMap.delete(id);
             }
         }
@@ -223,6 +230,7 @@ export class ReviewCommentController implements vscode.Disposable, ThreadMapLook
                 const created = this.createVscodeThread(reviewThread);
                 if (created) {
                     this.threadMap.set(reviewThread.id, created);
+                    this.reverseMap.set(created, reviewThread.id);
                 }
             }
         }
@@ -267,10 +275,7 @@ export class ReviewCommentController implements vscode.Disposable, ThreadMapLook
 
     /** Extract the store thread ID by reverse-looking up the VS Code thread in the map. */
     getThreadId(thread: vscode.CommentThread): string | undefined {
-        for (const [id, mappedThread] of this.threadMap) {
-            if (mappedThread === thread) { return id; }
-        }
-        return undefined;
+        return this.reverseMap.get(thread);
     }
 
     getThreadMap(): Map<string, vscode.CommentThread> {
@@ -304,6 +309,7 @@ export class ReviewCommentController implements vscode.Disposable, ThreadMapLook
             thread.dispose();
         }
         this.threadMap.clear();
+        this.reverseMap.clear();
         for (const disposable of this.disposables) {
             disposable.dispose();
         }

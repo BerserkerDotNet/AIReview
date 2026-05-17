@@ -15,10 +15,11 @@ export async function handleNewComment(reply: vscode.CommentReply, store: Review
     const line = (reply.thread.range?.start.line ?? 0) + 1;  // VS Code 0-indexed → store 1-indexed
     const relativePath = vscode.workspace.asRelativePath(uri, false);
 
-    // Dispose the placeholder thread VS Code created; syncFromStore will rebuild
-    reply.thread.dispose();
-
     await store.addThread(relativePath, line, reply.text);
+    // Dispose the placeholder thread VS Code created only after the store write
+    // succeeds.  If addThread throws, the placeholder stays visible so the user
+    // can retry rather than silently losing their typed text.
+    reply.thread.dispose();
     // store fires onDidChangeThreads → syncFromStore
 }
 
